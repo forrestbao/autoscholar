@@ -3,6 +3,7 @@ import sqlite3
 from sqlite3 import Error
 import sys,os
 import lib.menotexport as menotexport
+import codecs
 
 def create_connection(db):
     try:
@@ -62,7 +63,7 @@ def main(data_base_file,abspath_filename):
     f1,f2,f3,f4,ret,highlight_text_list2=menotexport.processCanonicals(conn,outdir,annotations,canonical_doc_ids,allfolders,action,separate,iszotero,verbose)
 
     counter=1
-    with open(abspath_filename, 'wb+') as mf:
+    with codecs.open(abspath_filename, 'wb+',encoding='utf8') as mf:
         wr= csv.writer(mf)
         for reti in ret:
             for retii in reti:
