@@ -45,9 +45,11 @@ DocumentFiles ON DocumentFiles.hash=Files.hash where
 DocumentFiles.documentId=" id)])
     (let ([query-result (query-rows conn query)])
       (if (empty? query-result) ""
-          (substring
-           (vector-ref (first query-result) 0)
-           (string-length "file://"))))))
+          (let ([str (vector-ref (first query-result) 0)])
+            (if (non-empty-string? str)
+                (substring str
+                           (string-length "file://"))
+                ""))))))
 
 (define (get-document-hash conn id)
   (let ([query (~a "SELECT Files.hash from Files LEFT JOIN
