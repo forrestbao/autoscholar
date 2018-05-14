@@ -1,13 +1,22 @@
 #+TITLE: Extract Mendeley highlights
 
-* Usage
+* Prerequisite
 
-First install [[https://racket-lang.org/][Racket]], then install a
-racket package (run the following from command line):
+First install [[https://racket-lang.org/][Racket]] (require 6.12 or
+higher), then install a racket package =pdf-read= (run the following
+from command line):
 
 #+BEGIN_EXAMPLE
 raco pkg install pdf-read
 #+END_EXAMPLE
+
+Install =libpoppler-glib= library.
+
+#+BEGIN_EXAMPLE
+apt install libpoppler-glib-dev
+#+END_EXAMPLE
+
+* Running the tool
 
 You can run the tool via =racket cmd.rkt=, or generate executable by
 =raco exe cmd.rkt=, and run the executable =cmd= directly.
@@ -22,6 +31,7 @@ Helper options:
 
 Generate text or html. Will generate files for each documents in the
 group, indexed by =documentId=.
+
 #+BEGIN_SRC sh
 # output <id>-pdf-path.txt <id>-hl.txt and <id>-full.txt
 ./cmd -g your-group-name /path/to/mendeley.sqlite
