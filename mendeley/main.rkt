@@ -15,7 +15,9 @@
          get-highlight-text
          get-document-text
          mendeley-group->txt
-         mendeley-group->html)
+         mendeley-group->html
+         is-bold-font?
+         is-italic-font?)
 
 (define (get-group-document-ids conn group-name)
   (let ([query (~a "SELECT documentId
@@ -139,7 +141,7 @@ order by FileHighlightRects.page")])
                         0.5))))
          1.5)))))
 
-;; (visualize-highlight conn 38)
+;; (visualize-highlight conn 48)
 
 (define (add-empty-attr text-with-layout)
   (map (λ (l) (append l '(()))) text-with-layout))
@@ -193,13 +195,6 @@ order by FileHighlightRects.page")])
                    page-hl)
                   (λ (letter)
                     (member 'hl (last letter))))))
-
-(define (attr->index-segments attr font-name)
-  (map (λ (v)
-         (take-right v 2))
-       (filter (λ (v)
-             (string-contains? (first v) font-name))
-           attr)))
 
 #;
 (define (page-text-not-in-rects page rects)
@@ -268,6 +263,54 @@ order by FileHighlightRects.page")])
                (page-text page))))))))
 
 
+(define bold-fonts '("AdvPTimesB" "AdvPTimesBI"))
+(define italic-fonts '("AdvPTimesI" "AdvPTimesBI"))
+
+(define (is-bold-font? font-name)
+  (or (string-contains? font-name "bold")
+      (string-contains? font-name "Bold")
+      (regexp-match? #rx".*[\\._-][bB]$" font-name)
+      (regexp-match? #rx".*[\\._-][bB][iI]$" font-name)
+      (regexp-match? #rx".*Bd(It)?$" font-name)
+      (member font-name bold-fonts)))
+(define (is-italic-font? font-name)
+  (or (string-contains? font-name "italic")
+      (string-contains? font-name "Italic")
+      (regexp-match? #rx".*[\\._-][iI]$" font-name)
+      (regexp-match? #rx".*[\\._-][bB][iI]$" font-name)
+      (regexp-match? #rx".*It$" font-name)
+      (regexp-match? #rx".*(Bd)?It$" font-name)
+      (member font-name italic-fonts)))
+
+(define (attr->index-segments attr func)
+  (map (λ (v)
+         (take-right v 2))
+       (filter (λ (v)
+                 (func (first v)))
+               attr)))
+
+
+(define (mendeley-group-list-fonts conn group-name)
+  "list the fonts used in group"
+  (let ([ids (get-group-document-ids
+              conn group-name)])
+    (remove-duplicates
+     (apply append
+            (for/list ([id ids])
+              (let ([f (get-document-file conn id)])
+                (when (non-empty-string? f)
+                  (let ([pagenum (pdf-count-pages f)])
+                    (remove-duplicates
+                     (apply append
+                            (for/list ([i (in-range pagenum)])
+                              (remove-duplicates (map first (page-attr (pdf-page f i)))))))))))))))
+
+(module+ test
+  (page-attr (pdf-page (get-document-file conn 49) 0))
+  (is-italic-font? "sdfjjsdf-i")
+  (mendeley-group-list-fonts conn "NSF project")
+  )
+
 (define (mendeley-document->html conn id)
   (let* ([f (get-document-file conn id)])
     (if (not (non-empty-string? f))
@@ -291,9 +334,9 @@ order by FileHighlightRects.page")])
                                     page
                                     (map (λ (l) (drop l 1)) page-hl))]
                       [bold-segments (attr->index-segments
-                                      (page-attr page) "Bold")]
+                                      (page-attr page) is-bold-font?)]
                       [italic-segments (attr->index-segments
-                                        (page-attr page) "Italic")])
+                                        (page-attr page) is-italic-font?)])
                   (page->html page
                               (list (list hl-segments "hl")
                                     (list bold-segments "b")
@@ -335,6 +378,7 @@ order by FileHighlightRects.page")])
            (~a id "-full.txt")
            #:exists 'replace))))))
 
+
 (module+ test
   (define conn
     (sqlite3-connect #:database "/home/hebi/.local/share/data/Mendeley Ltd./Mendeley Desktop/lihebi.com@gmail.com@www.mendeley.com.sqlite"
@@ -346,7 +390,7 @@ order by FileHighlightRects.page")])
   (define dirichlet-pdf (pdf-page "/home/hebi/.local/share/data/Mendeley%20Ltd./Mendeley%20Desktop/Downloaded/Blei,%20Ng,%20Jordan%20-%202012%20-%20Latent%20Dirichlet%20Allocation.pdf" 0))
   (define first-page-spec (first (get-highlight-spec 38)))
 
-  (get-highlight-text conn 38)
+  (get-highlight-text conn 48)
 
   (get-group-names conn)
   (get-group-document-ids conn "NSF project")
@@ -354,7 +398,7 @@ order by FileHighlightRects.page")])
   (mendeley-group->html conn "NSF project")
 
   (display-to-file
-   (mendeley-document->html conn 41)
+   (mendeley-document->html conn 48)
    "test.html"
    #:exists 'replace)
 
