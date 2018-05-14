@@ -90,10 +90,7 @@ order by FileHighlightRects.page")])
       (group-by (λ (v) (first v))
                 (map convert
                      ;; remove records that contains sql-null
-                     (filter
-                      (λ (x)
-                        (empty? (memf sql-null? (flatten x))))
-                      (map vector->list (query-rows conn query))))))))
+                     (map vector->list (query-rows conn query)))))))
 
 ;; (get-highlight-spec conn 67)
 
