@@ -15,7 +15,7 @@
          get-highlight-text
          get-document-text
          mendeley-group->txt
-         mendeley-group->htmlmendeley-group->txt)
+         mendeley-group->html)
 
 (define (get-group-document-ids conn group-name)
   (let ([query (~a "SELECT documentId
