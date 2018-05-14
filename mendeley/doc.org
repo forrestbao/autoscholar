@@ -1,0 +1,90 @@
+#+TITLE: Design Document
+
+* Tools
+- https://github.com/euske/pdfminer
+- pdftotext (by xpdf)
+- https://github.com/Xunius/Menotexport
+- libpoppler (based on xpdf 3.0 code base)
+- https://github.com/gcr/pdf-read
+- pdf specification: https://www.adobe.com/content/dam/acom/en/devnet/pdf/pdfs/PDF32000_2008.pdf
+
+* Database
+
+Files
+
+| hash | localUrl |
+
+FileHighlights                                                                                                
+
+| id | author | uuid | documentId (foreign) | fileHash | createdTime | unlinked | color | profileUuid |
+
+FileHighlightRects
+
+| id | highlightId (foreign) | page | x1 | y1 | y2 |
+
+Groups
+
+| id | remoteId (empty) | remoteUuid | name | groupType | status | ... |
+
+Folders
+
+| id | uuid | name | parentId  | access | 
+
+DocumentFolders
+| documentId | folderId |
+
+RemoteDocuments
+
+| documentId | remoteUuid | groupId |
+
+Documents
+
+| id | uuid | publisher | month | owner | pages | volume | year | shortTitle | favourite | arxivId | title | abstract | doi | institution |
+
+DocumentFiles
+| documentId | hash |
+
+find file local url from id
+#+BEGIN_SRC sql
+SELECT Files.localUrl from Files
+LEFT JOIN DocumentFiles
+ON DocumentFiles.hash=Files.hash
+where DocumentFiles.documentId=<ID>
+#+END_SRC
+
+from document id to highlights
+#+BEGIN_SRC sql
+select FileHighlightRects.page, 
+FileHighlightRects.x1, FileHighlightRects.y1,
+FileHighlightRects.x2, FileHighlightRects.y2,
+FROM files
+LEFT JOIN FileHighlights
+ON FileHighlights.fileHash=Files.hash
+LEFT JOIN FileHighlightRects
+ON FileHighlightRects.highlightId=FileHighlights.id
+where FileHighlights.documentId=<ID>
+#+END_SRC
+
+Original:
+#+BEGIN_SRC sql
+
+SELECT Files.localUrl, FileHighlightRects.page,
+                    FileHighlightRects.x1, FileHighlightRects.y1,
+                    FileHighlightRects.x2, FileHighlightRects.y2,
+                    FileHighlights.createdTime,
+                    FileHighlights.documentId,
+Groups.name,
+                    FileHighlights.color
+            FROM Files
+            LEFT JOIN FileHighlights
+                ON FileHighlights.fileHash=Files.hash
+            LEFT JOIN FileHighlightRects
+                ON FileHighlightRects.highlightId=FileHighlights.id
+LEFT JOIN RemoteDocuments
+ON RemoteDocuments.documentId=FileHighlights.documentId
+LEFT JOIN Groups
+ON Groups.id=RemoteDocuments.groupId
+            WHERE (FileHighlightRects.page IS NOT NULL)
+#+END_SRC
+
+
