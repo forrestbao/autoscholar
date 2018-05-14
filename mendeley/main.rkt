@@ -311,6 +311,28 @@ order by FileHighlightRects.page")])
   (mendeley-group-list-fonts conn "NSF project")
   )
 
+(define (get-subscript-segments attr)
+  "Heuristic:
+1. assume only subscript
+2. the font size should be less
+3. the length of the subscript must be less than 5
+"
+  (for/fold ([prev-size (second (first attr))]
+             [segments '()]
+             #:result segments)
+            ([current (in-list (rest attr))])
+    (let ([current-size (second current)])
+      (if (and (< current-size prev-size)
+               (< (apply - (reverse (take-right current 2))) 5))
+          (values current-size
+                  (append segments (list (take-right current 2))))
+          (values current-size segments)))))
+
+
+(module+ test
+  (get-subscript-segments (page-attr (pdf-page (get-document-file conn 60) 2)))
+  )
+
 (define (mendeley-document->html conn id)
   (let* ([f (get-document-file conn id)])
     (if (not (non-empty-string? f))
@@ -336,11 +358,13 @@ order by FileHighlightRects.page")])
                       [bold-segments (attr->index-segments
                                       (page-attr page) is-bold-font?)]
                       [italic-segments (attr->index-segments
-                                        (page-attr page) is-italic-font?)])
+                                        (page-attr page) is-italic-font?)]
+                      [subscript-segments (get-subscript-segments (page-attr page))])
                   (page->html page
                               (list (list hl-segments "hl")
                                     (list bold-segments "b")
-                                    (list italic-segments "i")))))))
+                                    (list italic-segments "i")
+                                    (list subscript-segments "sub")))))))
            "</body>" "</html>")))))
 
 (define (mendeley-group->html conn group-name)
