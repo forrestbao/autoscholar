@@ -246,18 +246,14 @@ order by FileHighlightRects.page")])
                  "")))))
 
 (define (page->html page segments)
-  (~a "<html>"
-      "<head> <style> hl { background-color: yellow; } </style> </head>"
-      "<body>"
-      (apply string-append
-             (let ([text (page-text page)])
-               (for/list ([i (in-naturals)]
-                          [letter (in-string text)])
-                 (~a (segment-prefix i segments)
-                     (string-replace (string letter)
-                                     "\n" "</br>\n")
-                     (segment-suffix i segments)))))
-      "</body>" "</html>"))
+  (apply string-append
+         (let ([text (page-text page)])
+           (for/list ([i (in-naturals)]
+                      [letter (in-string text)])
+             (~a (segment-prefix i segments)
+                 (string-replace (string letter)
+                                 "\n" "</br>\n")
+                 (segment-suffix i segments))))))
 
 (define (get-document-text conn id)
   (let ([f (get-document-file conn id)])
@@ -277,25 +273,31 @@ order by FileHighlightRects.page")])
         (displayln (~a "No pdf file downloaded for " id))
         (let ([pagenum (pdf-count-pages f)]
               [hls (apply append (get-highlight-spec conn id))])
-          (apply
-           string-append
-           (for/list ([i (in-range pagenum)])
-             (let ([page (pdf-page f i)]
-                   [page-hl (filter
-                             (λ (page-hl)
-                               (= (first page-hl) (add1 i)))
-                             hls)])
-               (let ([hl-segments (page-hl->index-segments
-                                   page
-                                   (map (λ (l) (drop l 1)) page-hl))]
-                     [bold-segments (attr->index-segments
-                                     (page-attr page) "Bold")]
-                     [italic-segments (attr->index-segments
-                                       (page-attr page) "Italic")])
-                 (page->html page
-                             (list (list hl-segments "hl")
-                                   (list bold-segments "b")
-                                   (list italic-segments "i")))))))))))
+          (string-append
+           "<html>"
+           "<meta charset=\"UTF-8\">"
+           "<head> <style> hl { background-color: yellow; } </style> </head>"
+           "<body>"
+           (apply
+            string-append
+            (for/list ([i (in-range pagenum)])
+              (let ([page (pdf-page f i)]
+                    [page-hl (filter
+                              (λ (page-hl)
+                                (= (first page-hl) (add1 i)))
+                              hls)])
+                (let ([hl-segments (page-hl->index-segments
+                                    page
+                                    (map (λ (l) (drop l 1)) page-hl))]
+                      [bold-segments (attr->index-segments
+                                      (page-attr page) "Bold")]
+                      [italic-segments (attr->index-segments
+                                        (page-attr page) "Italic")])
+                  (page->html page
+                              (list (list hl-segments "hl")
+                                    (list bold-segments "b")
+                                    (list italic-segments "i")))))))
+           "</body>" "</html>")))))
 
 (module+ test
   (define conn
