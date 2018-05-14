@@ -13,8 +13,9 @@
          get-highlight-spec
          mendeley-document->html
          get-highlight-text
-         get-document-text)
-
+         get-document-text
+         mendeley-group->txt
+         mendeley-group->htmlmendeley-group->txt)
 
 (define (get-group-document-ids conn group-name)
   (let ([query (~a "SELECT documentId
@@ -277,10 +278,10 @@ order by FileHighlightRects.page")])
         (let ([pagenum (pdf-count-pages f)]
               [hls (apply append (get-highlight-spec conn id))])
           (string-append
-           "<html>"
-           "<meta charset=\"UTF-8\">"
-           "<head> <style> hl { background-color: yellow; } </style> </head>"
-           "<body>"
+           "<html>\n"
+           "<meta charset=\"UTF-8\">\n"
+           "<head> <style> hl { background-color: yellow; } </style> </head>\n"
+           "<body>\n"
            (apply
             string-append
             (for/list ([i (in-range pagenum)])
@@ -302,6 +303,41 @@ order by FileHighlightRects.page")])
                                     (list italic-segments "i")))))))
            "</body>" "</html>")))))
 
+(define (mendeley-group->html conn group-name)
+  (let ([ids (get-group-document-ids
+              conn group-name)])
+    (for ([id ids])
+      (let ([f (get-document-file conn id)])
+        (when (non-empty-string? f)
+          (display-to-file
+           f (~a id "-pdf-path.txt")
+           #:exists 'replace)
+          (displayln (~a "Generating " id ".html .."))
+          (display-to-file
+           (mendeley-document->html conn id)
+           (~a id ".html")
+           #:exists 'replace))))))
+
+(define (mendeley-group->txt conn group-name)
+  (let ([ids (get-group-document-ids
+              conn group-name)])
+    (for ([id ids])
+      (let ([f (get-document-file conn id)])
+        (when (non-empty-string? f)
+          (display-to-file
+           f (~a id "-pdf-path.txt")
+           #:exists 'replace)
+          (displayln (~a "Generating " id "-hl.txt and "
+                         id  " -full.txt .."))
+          (display-to-file
+           (get-highlight-text conn id)
+           (~a id "-hl.txt")
+           #:exists 'replace)
+          (display-to-file
+           (get-document-text conn id)
+           (~a id "-full.txt")
+           #:exists 'replace))))))
+
 (module+ test
   (define conn
     (sqlite3-connect #:database "/home/hebi/.local/share/data/Mendeley Ltd./Mendeley Desktop/lihebi.com@gmail.com@www.mendeley.com.sqlite"
@@ -314,6 +350,11 @@ order by FileHighlightRects.page")])
   (define first-page-spec (first (get-highlight-spec 38)))
 
   (get-highlight-text conn 38)
+
+  (get-group-names conn)
+  (get-group-document-ids conn "NSF project")
+  (mendeley-group->txt conn "NSF project")
+  (mendeley-group->html conn "NSF project")
 
   (display-to-file
    (mendeley-document->html conn 41)
