@@ -8,6 +8,16 @@
 - https://github.com/gcr/pdf-read
 - pdf specification: https://www.adobe.com/content/dam/acom/en/devnet/pdf/pdfs/PDF32000_2008.pdf
 
+
+Not every document has a DOI, but most have. To get the list of doi
+
+#+BEGIN_EXAMPLE sql
+SELECT doi FROM Documents;
+#+END_EXAMPLE
+
+http://dx.doi.org/ concatenate DOI of a paper to this url should get
+to the webpage of it.
+
 * Database
 
 Files
