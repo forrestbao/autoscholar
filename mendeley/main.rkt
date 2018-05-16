@@ -5,7 +5,10 @@
 (require pict pdf-read)
 (require rackunit)
 (require racket/cmdline)
+(require net/url)
+(require net/mime)
 (require "pdf-read-extra.rkt")
+
 
 (provide get-group-names
          get-group-document-ids
@@ -53,6 +56,45 @@ DocumentFiles.documentId=" id)])
                 (substring str
                            (string-length "file://"))
                 ""))))))
+
+(define (db-get-doi conn id)
+  (let ([query (~a "SELECT doi FROM Documents where id=" id)])
+    (query-value conn query)))
+
+(module+ test
+  (define ids (get-group-document-ids conn "NSF project"))
+  (define dois (for/list ([id ids])
+                 (db-get-doi conn id)))
+
+  (display-to-file (string-join dois "\n")
+                   "dois.txt"
+                   #:exists 'replace)
+
+  (define url "https://www.sciencedirect.com/sdfe/arp/pii/S1096717606001042/body?entitledToken=D20E58439E3F7E0DA93AC68109F3114DE934C22FD44F6BF8B881601CB7EEED6D4311AF0E1F1CB0D0")
+
+  (define doi (first dois))
+
+  (define doi-url (~a "http://dx.doi.org/" "10.1002/bit.25021"))
+
+  (let ([p (get-pure-port (string->url url))])
+    (let ([str (port->string p)])
+      (close-input-port p)
+      str))
+
+  (mime-analyze mime)
+  (define msg
+    (mime-analyze (get-impure-port (string->url url))))
+  
+  (message-fields msg)
+  (entity-other (message-entity msg))
+
+  (define redirect-url
+    ;; "http://doi.wiley.com/10.1002/bit.25021"
+    ;; "http://onlinelibrary.wiley.com/resolve/doi?DOI=10.1002/bit.25021"
+    ;; "https://onlinelibrary.wiley.com/doi/abs/10.1002/bit.25021"
+    "https://onlinelibrary.wiley.com/doi/abs/10.1002/bit.25021?cookieSet=1")
+  
+  )
 
 (define (get-document-hash conn id)
   (let ([query (~a "SELECT Files.hash from Files LEFT JOIN
