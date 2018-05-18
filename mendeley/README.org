@@ -39,3 +39,16 @@ group, indexed by =documentId=.
 ./cmd -g your-group-name --html /path/to/mendeley.sqlite
 #+END_SRC
 
+
+* download html from publishers website
+
+You need to clone https://github.com/abiyani/automate-save-page-as and
+put the executable to your =$PATH=. You should also install =xdotool=
+(used by =save_page_as=). You should also install =firefox=, cause
+this tool seems not working with =chromium=.
+
+#+BEGIN_EXAMPLE
+./webpage.py -g "Group Name" /path/to/db.sqlite
+#+END_EXAMPLE
+
+It will write html files to =<ID>.html= for each document.
