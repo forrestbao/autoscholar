@@ -3,16 +3,97 @@
 # AGPL 3.0 
 import bs4
 
-def file2text(filename, publisher="elsevier"):
+def file2text(filename):
     """open a file and extract sentences from a paper. 
     """
     with open(filename, 'r') as f:
         html = f.read()
 
+    publisher = determine_publisher(html)
+
     if publisher == "elsevier":
         text = html2text_elsevier(html)
+    elif publisher == "nature":
+        text = html2text_nature(html)
 
     return text
+
+def determine_publisher(html):
+    """Determine the publisher based on the meta info in HTML
+
+    Args:
+        html (str): a string in HTML format
+
+    Returns:
+        str: a string \in {nature, springer, elsevier, bmc, wiley}
+
+    """
+    soup = bs4.BeautifulSoup(html, 'html.parser')
+
+    publisher_url_tag = soup.find("meta", {"name":"citation_pdf_url"})
+    citation_pdf_url = publisher_url_tag["content"]
+
+    if "sciencedirect.com" in citation_pdf_url:
+        return "elsevier"
+    elif "asm.org" in citation_pdf_url:
+        return "asm"
+    elif "nature.com" in citation_pdf_url:
+        return "nature"
+    elif "biomedcentral.com" in citation_pdf_url:
+        return "bmc"
+    elif "springer.com" in citation_pdf_url:
+        return "springer"
+    elif "embopress.org" in citation_pdf_url:
+        return "embo"
+    else:
+        return "WARNING"
+ 
+def html2text_nature(html):
+    """Extract text from an Elsevier HTML page 
+
+    Args:
+        html (str): a string in HTML format
+
+    Returns:
+        (bs4.element.ResultSet, bs4.element.ResultSet): text from paragraphs/captions, and text from table contents
+
+    Notes:
+        Subscripts, superscripts, and italic tags are preserved 
+        <p> and <td> tags are preserved
+    """
+    soup = bs4.BeautifulSoup(html, 'html.parser')
+    
+    article = soup.find('article') # get article node
+#    body = article.find('div', {'class':'article-body clear'}) # the part without title, abstract, 
+    body = article.find('div', {"data-track-component":"article body"}) # the part without title, abstract, 
+
+# Under body, a paper is segmented into <section>s, each of which contain many <p> nodes
+    sections  = body.find_all("section")
+    true_body = [section for section in sections if section["aria-labelledby"] in ["abstract", "main", "results", "discussion", "methods"]]
+
+    paragraphs, table_cells = [], []
+    for section in true_body:
+        paragraphs += section.find_all('p') # includes plain paragraphs and detailed captions under figures
+        table_cells += section.find_all('td')
+#    figure_captions = 
+
+    for cell in table_cells:
+        cell.attrs = []  # strip attributes of all table cells 
+
+    return paragraphs, table_cells
+
+def html2text_springer():
+    pass
+
+def html2text_bmc():
+    pass
+
+def html2text_wiley():
+    pass
+
+def html2text_embo():
+    pass
+
 
 def html2text_elsevier(html):
     """Extract text from an Elsevier HTML page 
@@ -21,7 +102,7 @@ def html2text_elsevier(html):
         html (str): a string in HTML format
 
     Returns:
-        (bs4.element.ResultSet, bs4.element.ResultSet): text from paragraphs/captions, and text from table contents
+        (list of bs4.element, list of bs4.element): text from paragraphs/captions, and text from table contents
 
     Notes:
         Subscripts, superscripts, and italic tags are preserved 
@@ -35,7 +116,9 @@ def html2text_elsevier(html):
                         and its child(ren)
 
         Notes:
-            We cannot remove them at this stage. Remove in training preprocessing
+            We cannot remove them at this stage. Otherwise, alignment to 
+            highlighted text from PDF may be problematic. Remove in 
+            training preprocessing
         """
         cross_refs = text.find_all("a", {"class":"workspace-trigger"})
         table_figure_numbers = text.find_all("span", {"class":"label"})
