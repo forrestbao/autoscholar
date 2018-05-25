@@ -18,5 +18,14 @@ On Ubuntu, to install, run the following commands:
 ## Usage
 
 	$ ./webpage.py -g "Group Name" /path/to/db.sqlite
+    
+It will save the HTML files to `<ID>.html` for each paper, where
+`<ID>` is an integer. You can specify the output directory via `-o`
+option, the default output dir is `"html_output"`. If the file already
+exists, it will be skipped.
 
-It will save the HTML files to `<ID>.html` for each paper, where `<ID>` is an integer. 
+There are two ways to retrieve web url for a paper, either
+automatically resolve the DOI of the paper from http://dx.doi.org, or
+by extracting the url in mendeley database. In case of both are
+available, the preference will be determined by the `--prefer`
+argument.
