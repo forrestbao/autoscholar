@@ -15,14 +15,33 @@ def file2text(filename):
         text = html2text_elsevier(html)
     elif publisher == "nature":
         text = html2text_nature(html)
+    elif publisher == "springer":
+        text = html2text_springer(html)
 
     return text
+
+def children2string(BS4Tag):
+    """Given a BS4 tag, concatenate all its children to into a string 
+    """
+    return "".join(map(str, list(BS4Tag.children)))
+
+def decompose_list(List):
+    """remove elements of List from parsing tree
+    """
+    for element in List:
+        element.decompose()
+
+def taglist2stringlist(taglist):
+    """Given a list BS4 tag, one string for all children of each of them. 
+    """
+
+    return list(map(children2string, taglist))
 
 def determine_publisher(html):
     """Determine the publisher based on the meta info in HTML
 
     Args:
-        html (str): a string in HTML format
+        html (str): a string in HTML syntax
 
     Returns:
         str: a string \in {nature, springer, elsevier, bmc, wiley}
@@ -52,7 +71,7 @@ def html2text_nature(html):
     """Extract text from an Elsevier HTML page 
 
     Args:
-        html (str): a string in HTML format
+        html (str): a string in HTML syntax 
 
     Returns:
         (bs4.element.ResultSet, bs4.element.ResultSet): text from paragraphs/captions, and text from table contents
@@ -82,8 +101,62 @@ def html2text_nature(html):
 
     return paragraphs, table_cells
 
-def html2text_springer():
-    pass
+def html2text_springer(html):
+    """
+
+    Args:
+        html (str): a string in HTML format
+
+    Returns:
+        (list of str, list of str): text from paragraphs/captions, and text from table contents
+
+    Notes:
+        Subscripts, superscripts, and italic tags are preserved 
+        <p> and <td> tags are preserved
+
+    """
+
+    paragraphs = []
+
+    soup = bs4.BeautifulSoup(html, 'html.parser')
+
+    main = soup.find("main")
+    article = main.find("article")
+
+    # 1. Abstract 
+    Abs_section = article.find("section", {"class":"Abstract"})
+    paragraphs += taglist2stringlist(Abs_section.find_all("p"))  # A list of strings
+
+    # 2. Regular text paragraphs, except those right before figures/tables
+    body = article.find("div", {"id":"body"})  # only regular sections
+    p_para = body.find_all("p", {"class":"Para"})
+    paragraphs += taglist2stringlist(p_para)
+
+    # 3. Get Table captions and table footnote
+    Captions = body.find_all("div", {"class":"CaptionContent"})
+    Footers = body.find_all("div", {"class":"TableFooter"})
+    # Get both <span> for table/figure number, and the caption/footnote in <p class="SimplePara"> 
+
+    paragraphs += taglist2stringlist(Captions)
+    paragraphs += taglist2stringlist(Footers)
+
+    # Table contents 
+    table_tds = taglist2stringlist(body.find_all("td"))
+
+    # 4. Paragraph right before a table/figure, and captions, and footnote 
+    # Delete all figure and table nodes since they are extracted in Step 3.
+    decompose_list(body.find_all("div",{"class":"Table"}))
+    decompose_list(body.find_all("figure"))
+
+    # Then we have only "pure" paragraphs left 
+    div_para = body.find_all("div", {"class":"Para"})
+    paragraphs += taglist2stringlist(div_para)
+
+    # 5. convert to string from bs4.element
+    paragraphs = list(map(str, paragraphs))
+    table_tds = list(map(str, table_tds))
+
+    return paragraphs, table_tds
 
 def html2text_bmc():
     pass
