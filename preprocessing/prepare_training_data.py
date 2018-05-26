@@ -1,7 +1,7 @@
 # Extract text information of a paper from the publisher's website 
 # Copyleft 2018 Forrest Sheng Bao, Iowa State University
 # AGPL 3.0 
-import bs4
+import bs4, re
 
 def file2text(filename):
     """open a file and extract sentences from a paper. 
@@ -17,6 +17,10 @@ def file2text(filename):
         text = html2text_nature(html)
     elif publisher == "springer":
         text = html2text_springer(html)
+    elif publisher == "asm":
+        text = html2text_asm(html)
+
+
 
     return text
 
@@ -102,7 +106,7 @@ def html2text_nature(html):
     return paragraphs, table_cells
 
 def html2text_springer(html):
-    """
+    """Extract text from a Springer-style HTML page
 
     Args:
         html (str): a string in HTML format
@@ -158,10 +162,65 @@ def html2text_springer(html):
 
     return paragraphs, table_tds
 
+def html2text_asm(html):
+    """Extract text from a ASM-style HTML page
+
+     Args:
+        html (str): a string in HTML format
+
+    Returns:
+        (list of str, list of str): text from paragraphs/captions, and text from table contents
+
+    Notes:
+        Subscripts, superscripts, and italic tags are preserved 
+        ASM does not keep tables in the same HTML page as the main body. 
+        So no <td>  nodes in return. 
+
+        ASM: American Society for Microbiology
+
+    """
+    soup = bs4.BeautifulSoup(html, 'html.parser')
+    body = soup.find("div",{"class":"article"}) # only one of such tag 
+    sections = body.findAll("div", {"class":"section"})
+
+    # Find the first appendix-type paragraph's id 
+    """
+    appendix_paras = []
+    for s in sections:
+        if "abstract" not in s["class"] and s["class"] != ["section"]:
+            appendix_paras += s.findAll("p")
+    pids = [p["id"] for p in appendix_paras]
+    pids = [int(re.search(r'p-([\d]+)', ID).group(1)) for ID in pids] 
+    first_appendix_pid = min(pids)
+    """
+
+    # Find all main sections 
+    main_sections = [s for s in sections if re.match(r'sec-[\d]+', s["id"])]
+    main_paras = [] # include captions for tables and figures 
+    for section in main_sections:
+        main_paras += section.findAll("p")
+    pids = [p["id"] for p in main_paras]
+    pids = [int(re.search(r'p-([\d]+)', ID).group(1)) for ID in pids] 
+    first_main_pid = min(pids)
+    
+    # Now append abstract paragraphs
+    paras = main_paras
+    for ID in range(1, first_main_pid):
+        paras.append(body.find("p", {"id":"p-"+str(ID)}))
+
+    paras  = taglist2stringlist(paras)
+
+    return paras, ['']
+
 def html2text_bmc():
     pass
 
 def html2text_wiley():
+    """
+
+    Notes:
+        test on 296.html 
+    """
     pass
 
 def html2text_embo():
