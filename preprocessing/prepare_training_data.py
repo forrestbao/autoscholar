@@ -19,7 +19,8 @@ def file2text(filename):
         text = html2text_springer(html)
     elif publisher == "asm":
         text = html2text_asm(html)
-
+    elif publisher == "wiley":
+        text = html2text_wiley(html)
 
 
     return text
@@ -68,6 +69,8 @@ def determine_publisher(html):
         return "springer"
     elif "embopress.org" in citation_pdf_url:
         return "embo"
+    elif "wiley.com" in citation_pdf_url:
+        return "wiley"
     else:
         return "WARNING"
  
@@ -215,17 +218,56 @@ def html2text_asm(html):
 def html2text_bmc():
     pass
 
-def html2text_wiley():
+def html2text_wiley(html):
     """
 
     Notes:
         test on 296.html 
     """
-    pass
+    soup = bs4.BeautifulSoup(html, 'html.parser')
+    article_body = soup.find("div", {"class":"article__body"})
+    article = article_body.find("article")
+
+    # Get abstract 
+    abstract_section = article.find("section",{"class":"article-section__abstract"})
+    abstract_paras = abstract_section.findAll("p")
+    abstract_paras = taglist2stringlist(abstract_paras)
+    abstract_paras[-1] = " ".join((abstract_paras[-1]).split("\n")[:-2]).strip()
+    # -2 because the copyright info has one empty line. 
+
+    # Get normal paragrahs 
+    full_section = article.find("section", {"class":"article-section__full"})
+    normal_divs = full_section.findAll("div", {"class":"article-section__content"})
+    normal_paras = []
+    for div in normal_divs:
+        normal_paras += div.findAll("p")
+
+    # Get table captions
+    table_captions = full_section.findAll("header", {"class":"article-table-caption"})
+
+    # Get figure captions 
+    figure_captions = full_section.findAll("figcaption")
+    fig_cap_text = []
+    for fig_cap in figure_captions:
+        fig_cap_text += fig_cap.findAll("div", {"class":"accordion__content"})
+
+    # Get <td> s
+    table_tds = full_section.findAll("td")
+
+    # Final output 
+    all_paras = normal_paras + table_captions + fig_cap_text
+    all_paras = taglist2stringlist(all_paras)
+    all_paras += abstract_paras
+
+    table_tds = taglist2stringlist(table_tds)
+
+    return all_paras, table_tds
 
 def html2text_embo():
     pass
 
+def html2text_pubmed():
+    pass
 
 def html2text_elsevier(html):
     """Extract text from an Elsevier HTML page 
