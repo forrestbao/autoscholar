@@ -15,13 +15,14 @@ def file2text(filename):
         text = html2text_elsevier(html)
     elif publisher == "nature":
         text = html2text_nature(html)
-    elif publisher == "springer":
+    elif publisher in ["springer"]:
         text = html2text_springer(html)
     elif publisher == "asm":
         text = html2text_asm(html)
     elif publisher == "wiley":
         text = html2text_wiley(html)
-
+    elif publisher == "bmc":
+        text = html2text_bmc(html)
 
     return text
 
@@ -139,18 +140,17 @@ def html2text_springer(html):
     p_para = body.find_all("p", {"class":"Para"})
     paragraphs += taglist2stringlist(p_para)
 
-    # 3. Get Table captions and table footnote
+    # 3. Tables 
     Captions = body.find_all("div", {"class":"CaptionContent"})
     Footers = body.find_all("div", {"class":"TableFooter"})
     # Get both <span> for table/figure number, and the caption/footnote in <p class="SimplePara"> 
-
     paragraphs += taglist2stringlist(Captions)
     paragraphs += taglist2stringlist(Footers)
 
-    # Table contents 
+    # 4. Table contents
     table_tds = taglist2stringlist(body.find_all("td"))
 
-    # 4. Paragraph right before a table/figure, and captions, and footnote 
+    # 5. Paragraph right before a table/figure, and captions, and footnote 
     # Delete all figure and table nodes since they are extracted in Step 3.
     decompose_list(body.find_all("div",{"class":"Table"}))
     decompose_list(body.find_all("figure"))
@@ -159,7 +159,7 @@ def html2text_springer(html):
     div_para = body.find_all("div", {"class":"Para"})
     paragraphs += taglist2stringlist(div_para)
 
-    # 5. convert to string from bs4.element
+    # 6. convert to string from bs4.element
     paragraphs = list(map(str, paragraphs))
     table_tds = list(map(str, table_tds))
 
@@ -215,8 +215,64 @@ def html2text_asm(html):
 
     return paras, ['']
 
-def html2text_bmc():
-    pass
+def html2text_bmc(html):
+    """Extract text from a Springer-style HTML page
+
+    Args:
+        html (str): a string in HTML format
+
+    Returns:
+        (list of str, list of str): text from paragraphs/captions, and text from table contents
+
+    Notes:
+        Subscripts, superscripts, and italic tags are preserved 
+        <p> and <td> tags are preserved
+
+    """
+
+    paragraphs = []
+
+    soup = bs4.BeautifulSoup(html, 'html.parser')
+
+    main = soup.find("main")
+
+    # 1. Paragraphs not right bbefore figures/tables 
+    AllParas = main.findAll("p", {"class":"Para"})   # All paragraphs not before figures/tables 
+    GoodParaID= r'(Sec|ASec)\d+'
+    Paras = []  # only those good ones 
+    for p in AllParas:
+        if p.parent.has_attr("id"):  # for paras under a subsection <section> node
+            if re.match(GoodParaID, p.parent["id"]):
+                Paras.append(p)
+        if p.parent.parent.has_attr("id"): 
+            if re.match(GoodParaID, p.parent.parent["id"]):  # for paras under a section <section> node
+                Paras.append(p)
+
+    paragraphs += taglist2stringlist(Paras)
+
+    # 2. Captions and footers of figures/tables 
+    Captions = main.find_all("div", {"class":"CaptionContent"})
+    Footers  = main.find_all("div", {"class":"TableFooter"})
+
+    paragraphs += taglist2stringlist(Captions)
+    paragraphs += taglist2stringlist(Footers)
+
+    # 3. Table contents
+    table_tds = taglist2stringlist(main.find_all("td"))
+
+    # 4. Paragraph right before a table/figure, and captions, and footnote 
+    # Delete all figure and table nodes since they are extracted in Step 2.
+    decompose_list(main.find_all("figure"))
+
+    # Then we have only "pure" paragraphs left 
+    div_para = main.find_all("div", {"class":"Para"})
+    paragraphs += taglist2stringlist(div_para)
+
+    # 6. convert to string from bs4.element
+    paragraphs = list(map(str, paragraphs))
+    table_tds = list(map(str, table_tds))
+
+    return paragraphs, table_tds
 
 def html2text_wiley(html):
     """
