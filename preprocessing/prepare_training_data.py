@@ -23,6 +23,8 @@ def file2text(filename):
         text = html2text_wiley(html)
     elif publisher == "bmc":
         text = html2text_bmc(html)
+    elif publisher == "embo":
+        text = html2text_embo(html)
 
     return text
 
@@ -275,7 +277,18 @@ def html2text_bmc(html):
     return paragraphs, table_tds
 
 def html2text_wiley(html):
-    """
+    """Extract text from Wiley format HTML pages 
+
+    Args:
+        html (str): a string in HTML format
+
+    Returns:
+        (list of str, list of str): text from paragraphs/captions, and text from table contents
+
+    Notes:
+        Subscripts, superscripts, and italic tags are preserved 
+        <p> and <td> tags are preserved
+
 
     Notes:
         test on 296.html 
@@ -319,11 +332,55 @@ def html2text_wiley(html):
 
     return all_paras, table_tds
 
-def html2text_embo():
-    pass
+def html2text_embo(html):
+    """Extract text from pubmed format HTML pages 
+
+    Args:
+        html (str): a string in HTML format
+
+    Returns:
+        (list of str, list of str): text from paragraphs/captions, and text from table contents
+
+    Notes:
+        1. Subscripts, superscripts, and italic tags are preserved 
+        2. Unknown how tables are represented because example paper has no tables. 
+
+    """
+
+    soup = bs4.BeautifulSoup(html, 'html.parser')
+    article = soup.find('div', {"class":"article"})
+
+    paras = article.findAll("p")
+    main_paras = [p for p in paras if re.match(r'sec-\d+', p.parent.get("id", ""))]
+    # only main paragraphs have parent <div> of id in the form of sec-\d+
+
+    abs_paras = [p for p in paras if "abstract" in p.parent.get("class", "")]
+
+    fig_captions = [p for p in paras if "fig-caption" in p.parent.get("class", "") ]
+
+    all_useable_paras = abs_paras + main_paras + fig_captions 
+    all_useable_paras = taglist2stringlist(all_useable_paras)
+
+    return all_useable_paras, []
 
 def html2text_pubmed():
-    pass
+    """Extract text from pubmed format HTML pages 
+
+    Args:
+        html (str): a string in HTML format
+
+    Returns:
+        (list of str, list of str): text from paragraphs/captions, and text from table contents
+
+    Notes:
+        Subscripts, superscripts, and italic tags are preserved 
+        <p> and <td> tags are preserved
+
+
+    """
+
+    pass 
+
 
 def html2text_elsevier(html):
     """Extract text from an Elsevier HTML page 
