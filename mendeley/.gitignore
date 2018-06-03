@@ -1,3 +1,8 @@
 *.txt
 *.html
 cmd
+
+*.pdf
+*.tex
+Pipfile*
+*.pyc

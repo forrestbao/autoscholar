@@ -181,3 +181,30 @@ python library provides a =SequenceMatcher= class.
 Thus, in the following, we will compare the performance of
 /fuzzysearch/, TRE library via python binding, and command line
 utility =agrep=.
+
+* Experiment
+Design
+
+parameters:
+- ratio of mutation (10%)
+- number of words in the pattern (>10)
+- fuzz threshold: (100 for TRE, 10 for fuzzysearch word level)
+
+Output:
+- time
+- success/fail/total
+
+
+TRE and fuzzysearch
+
+Each has one table for:
+
+| ratio | time | sucess | total | rate |
+|-------+------+--------+-------+------|
+|       |      |        |       |      |
+
+| fuzz threshold | ... |
+|----------------+-----|
+|                |     |
+
+
