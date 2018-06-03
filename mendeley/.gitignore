@@ -6,3 +6,5 @@ cmd
 *.tex
 Pipfile*
 *.pyc
+
+*.bbl

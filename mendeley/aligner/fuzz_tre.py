@@ -8,9 +8,9 @@ import re
 from fuzz_common import test_dir, test_file, mutate
 
 
-def tre_search(seq, pattern):
+def tre_search(seq, pattern, max_dist=150):
     # PARAM
-    fz = tre.Fuzzyness(maxerr=150)
+    fz = tre.Fuzzyness(maxerr=max_dist)
     # FIXME this escape might cause tre.compile to fail
     pattern = re.sub(r'[()\[\]]', '', pattern)
     # pt = tre.compile(re.escape(pattern))
@@ -31,6 +31,7 @@ def tre_search(seq, pattern):
 
 if __name__ == '__hebi__':
     dir = '/home/hebi/github/autoscholar/mendeley/html-output/'
+    
     t1 = time.time()
     test_dir(dir, tre_search)
     # time.sleep(1.2)
@@ -51,10 +52,32 @@ if __name__ == '__hebi__':
     print(content[start:end])
     pass
 
+def test_distance(dir):
+    for max_dist in (10, 30, 50, 80, 100, 150, 200):
+        t1 = time.time()
+        suc, fail = test_dir(dir,
+                             lambda x, y: tre_search(x, y, max_dist))
+        # time.sleep(1.2)
+        t2 = time.time()
+        print('-----------------')
+        print('max distance: ' + str(max_dist))
+        print('elapsed time: ' + str(t2-t1))
+        print('suc/fail: ' + str(suc) + '/' + str(fail))
+
+def test_mutation(dir):
+    for ratio in (0.05, 0.1, 0.2, 0.3):
+        t1 = time.time()
+        suc, fail = test_dir(dir,
+                             lambda x, y: tre_search(x, y, 100),
+                             ratio)
+        # time.sleep(1.2)
+        t2 = time.time()
+        print('-----------------')
+        print('ratio: ' + str(ratio))
+        print('elapsed time: ' + str(t2-t1))
+        print('suc/fail: ' + str(suc) + '/' + str(fail))
+    
 # if __name__ == '__main__':
-#     dir = '/home/hebi/github/autoscholar/mendeley/html-output/'
-#     t1 = time.time()
-#     test_dir(dir, tre_search)
-#     # time.sleep(1.2)
-#     t2 = time.time()
-#     print('elapsed time ' + str(t2-t1))
+#     dir = '/home/hebi/github/autoscholar/mendeley/aligner/test/'
+#     # test_distance(dir)
+#     test_mutation(dir)
