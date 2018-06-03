@@ -1,0 +1,183 @@
+#+TITLE: Doc
+
+
+
+
+
+
+
+* Introduction
+
+This paper studies the problem of approximate sentence alignment. In
+particular, given a pattern string $p$ and a long text string $t$,
+find a substring $t'$ of $t$ such that $t'$ has the smallest edit
+distance from $p$.
+
+The problem is extensively studie in bioinformation
+cite:1970-Journal-Needleman-General
+cite:1981-Journal-Smith-Identification for alignment of DNA sequences
+to find similar functions, known as /sequence alignment/. In computer
+science, the problem is known as /approximate string matching/, or
+/fuzzy string searching/, and also /pattern recognition/
+cite:1980-Journal-Sellers-Theory.  The algorithms are used in /Natural
+Language Processing/ for sentence alignment.
+
+The edit distance typically refers to the /Levenshtein distance/ which
+counts the minimum number of single-character edits (insertions,
+deletions or substitutions) required to change one word into the
+other.
+
+* Algorithms
+
+/Global alignment/ aligns two string in their entirety, thus requires
+similar length. The initial Needleman–Wunsch algorithm
+cite:1970-Journal-Needleman-General is an /Dynamic Programming (DP)/
+algorithm for that. The Hirschberg's algorithm
+cite:1975-CACM-Hirschberg-Linear is a space-efficient version of
+Needleman–Wunsch algorithm.
+
+/Local alignment/, on the other hand, allows similar region of
+sequence, thus often more useful, but harder to compute.  The
+Smith–Waterman algorithm cite:1981-Journal-Smith-Identification is a
+variation of Needleman–Wunsch algorithm, and differs in setting the
+negative /scoring matrix cells/ to 0. But it is not efficient in
+practice, and it is improved by others
+cite:1982-Journal-Gotoh-Improved cite:1986-Journal-Altschul-Optimal
+cite:1988-Journal-Myers-Optimal.
+
+Exact string searching algorithms include Rabin-Karp algorithm,
+Knuth-Morris-Pratt (KMP) algorithm, Boyer-Moore algorithm.
+
+For approximate string search, the brute-force way is to compute all
+substrings of $t$ of length of $p$, and calculate the edit distance.
+The complexity is $O(n^3m)$ with m,n being length of p,t
+respectively. Thus, it is too costly. 
+
+Now we describe a DP algorithm cite:1980-Journal-Sellers-Theory for
+computing it using Dynamic Programming. First, the /Levenshtein
+distance/ can be computed dynamically. Let $lev_{a,b}(i,j)$ be the
+distance of string =a[:i]= and =b[:j]=. It can be computed as
+
+\begin{equation*}
+lev_{a,b}(i,j) =
+\begin{cases}
+max(i,j) & \text{if } min(i,j)=0,\\
+min
+\begin{cases}
+lev_{a,b}(i-1,j) + 1\\
+lev_{a,b}(i,j-1) + 1\\
+lev_{a,b}(i-1,j-1) + 1_{a_i \ne b_j}
+\end{cases}
+& otherwise
+\end{cases}
+\end{equation*}
+
+Then, for the original problem, we compute =E(i,j)= as the minimal
+distance of the distance between =t[x:j]= and =p[:i]= for all
+$x$. =E(i,j)= can also be computed dynamically, via exactly the same
+formula. Of course, we need to keep track of the path of computing.
+
+There is another algorithm called /Bitap algorithm/, also known as
+/shift-or/, /shift-and/ or /Baeza-Yates–Gonnet algorithm/, for
+approximate string matching. The algorithm precomputes a set of
+bitmasks containing one bit for each element of the pattern, then does
+most of the work with bitwise operations, which are extremely fast. It
+is used in the =agrep= Unix utility implemented with the TRE
+library [fn:tre].
+
+
+[fn:tre] https://github.com/laurikari/tre
+
+
+
+Other papers:
+- A phrase-based alignment model for natural language inference
+  cite:2008-EMNLP-MacCartney-Phrase
+- Back to basics for monolingual alignment: Exploiting word similarity
+  and contextual evidence cite:2014-ACL-Sultan-Back
+
+
+
+* Open Source Implementations
+
+There are many tools provided in the domain of
+bioinformation [fn:ebi], e.g. GeneWise cite:URL-GeneWise. However,
+these are typically specialized for DNA sequence matching, and
+provides web interface instead of versatile open source
+implementations.
+
+[fn:ebi] https://www.ebi.ac.uk/Tools/psa/
+
+
+
+In NLP, the =monolingual-word-aligner= [fn:word-aligner-sultan] by
+Sultan et al cite:2015-Workshop-Sultan-DLS exploits semantic and
+contextual similarities of the words to make alignment decisions.
+Ferrero extends it [fn:word-aligner-ferrero] adds a IDF weighting in
+the Jaccard distance formula (approach presented by Brychcin
+cite:2016-Workshop-Brychcin-UWB). The outputs are word-level
+alignments, and not very related to the problem. For example, given
+the input sentences:
+
+#+BEGIN_EXAMPLE
+sentence1 = "Four men died in an accident."
+sentence2 = "4 people are dead from a collision."
+#+END_EXAMPLE
+
+It will output:
+#+BEGIN_EXAMPLE
+[[7, 8], [2, 2], [3, 4], [1, 1], [6, 7], [5, 6]]
+[['men', 'people'], ['died', 'dead'], ['Four', '4'],
+ ['accident', 'collision'], ['an', 'a']]
+#+END_EXAMPLE
+
+
+[fn:word-aligner-sultan] https://github.com/ma-sultan/monolingual-word-aligner
+[fn:word-aligner-ferrero] https://github.com/FerreroJeremy/monolingual-word-aligner
+
+
+
+On the approximate string searching part, /fuzzywuzzy/ [fn:fuzzywuzzy]
+is a fuzzy string matching in python. Under the hood, it uses
+/python-Levenshtein/ [fn:levenshtein]. The two projects are not well
+maintained and well-written, and I found the only function
+=partial_ratio= that is related to computing approximate string
+matching very suspicious [fn:fuzzywuzzy-issues].
+
+[fn:fuzzywuzzy] https://github.com/seatgeek/fuzzywuzzy
+[fn:levenshtein] https://github.com/miohtama/python-Levenshtein
+[fn:fuzzywuzzy-issues] https://github.com/seatgeek/fuzzywuzzy/issues/207
+
+
+/fuzzysearch/ [fn:fuzzysearch] has a function =find_near_matches= that
+accepts =(subseq, seq, max_l_dist)=, i.e. accepts general sequence
+instead of merely string, thus it can be used to support word-level
+distance with input of sequence of words.
+
+The TRE library [fn:tre] provides a very fast implementations for
+fuzzy string search, providing a C library, a utility tool =agrep=,
+and a python binding. This can only deal with string (instead of
+words), because it is basically an regular expression library. The
+utility tool =agrep= can also be used for example this:
+
+#+BEGIN_EXAMPLE shell
+agrep
+ -E 10000 # number of allowed errors
+ -d "hfdsfjadsl" # an arbitrary value to use as 'line separator', It is '\n' by default
+  --show-position # show starting index of the match
+ "The approximate pattern string"
+ /path/to/file/to/match
+#+END_EXAMPLE
+
+[fn:fuzzysearch] https://github.com/taleinat/fuzzysearch
+[fn:tre] https://github.com/laurikari/tre
+
+On the exact string matching part: /difflib/ [fn:difflib]in standard
+python library provides a =SequenceMatcher= class.
+
+[fn:difflib] https://docs.python.org/3/library/difflib.html
+
+
+Thus, in the following, we will compare the performance of
+/fuzzysearch/, TRE library via python binding, and command line
+utility =agrep=.
