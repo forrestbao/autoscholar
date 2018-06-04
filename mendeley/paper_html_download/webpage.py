@@ -72,6 +72,8 @@ def doi2link(doi):
 
 def full_text_url(url):
     url = url.strip()
+    if type(url) == bytes:
+        url = url.decode('utf8')
     if url.startswith('http://aem.asm.org') and not url.endswith('.full'):
         return url + '.full'
     elif url.startswith('https://onlinelibrary.wiley.com'):
