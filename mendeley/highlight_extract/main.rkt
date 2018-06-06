@@ -7,6 +7,7 @@
 (require racket/cmdline)
 (require net/url)
 (require net/mime)
+(require libuuid)
 (require "pdf-read-extra.rkt")
 
 
@@ -68,33 +69,7 @@ DocumentFiles.documentId=" id)])
 
   (display-to-file (string-join dois "\n")
                    "dois.txt"
-                   #:exists 'replace)
-
-  (define url "https://www.sciencedirect.com/sdfe/arp/pii/S1096717606001042/body?entitledToken=D20E58439E3F7E0DA93AC68109F3114DE934C22FD44F6BF8B881601CB7EEED6D4311AF0E1F1CB0D0")
-
-  (define doi (first dois))
-
-  (define doi-url (~a "http://dx.doi.org/" "10.1002/bit.25021"))
-
-  (let ([p (get-pure-port (string->url url))])
-    (let ([str (port->string p)])
-      (close-input-port p)
-      str))
-
-  (mime-analyze mime)
-  (define msg
-    (mime-analyze (get-impure-port (string->url url))))
-  
-  (message-fields msg)
-  (entity-other (message-entity msg))
-
-  (define redirect-url
-    ;; "http://doi.wiley.com/10.1002/bit.25021"
-    ;; "http://onlinelibrary.wiley.com/resolve/doi?DOI=10.1002/bit.25021"
-    ;; "https://onlinelibrary.wiley.com/doi/abs/10.1002/bit.25021"
-    "https://onlinelibrary.wiley.com/doi/abs/10.1002/bit.25021?cookieSet=1")
-  
-  )
+                   #:exists 'replace))
 
 (define (get-document-hash conn id)
   (let ([query (~a "SELECT Files.hash from Files LEFT JOIN
@@ -135,6 +110,30 @@ order by FileHighlightRects.page")])
                 (map convert
                      ;; remove records that contains sql-null
                      (map vector->list (query-rows conn query)))))))
+
+;; FIXME change format of the coordinates
+(define (insert-highlight conn id rects)
+  (for ([rect rects])
+    (match-let ([(list x1 y1 x2 y2) rect])
+      (let ([q (λ (s)
+                 (~a "\"" s "\""))])
+        (let* ([uuid (uuid-generate)]
+               [sql-file-highlights
+                (~a "insert into FileHighlights "
+                    "(uuid, documentId, fileHash, createdTime,unlinked)"
+                    " values ("
+                    (q uuid) "," (q (number->string id)) ","
+                    (q (get-document-hash conn id)) ","
+                    (q "2017-06-10T18:45:53Z") "," "false" ")")]
+               [sql-hlid (~a "select id from FileHighlights where uuid = " (q uuid))])
+          (query-exec sql-file-highlights)
+          (let ([hlid (query-value sql-hlid)])
+            (let ([sql-file-highlight-rects
+                   (~a "insert into FileHighlightRects "
+                       "(highlightId, page, x1, y1, x2, y2)"
+                       " values "
+                       "(" (q hlid) "," "0" "," x1 "," y1 "," x2 "," y2 ")")])
+              (query-exec sql-file-highlight-rects))))))) )
 
 ;; (get-highlight-spec conn 67)
 
@@ -463,6 +462,11 @@ order by FileHighlightRects.page")])
   (mendeley-group->txt conn "NSF project")
   (mendeley-group->html conn "NSF project")
 
+
+  
+  (length (page-text-layout (pdf-page pdf-file 0)))
+  (string-length (page-text (pdf-page pdf-file 0)))
+
   (display-to-file
    (mendeley-document->html conn 48)
    "test.html"
@@ -495,5 +499,84 @@ order by FileHighlightRects.page")])
                        (cellophane
                         (colorize (filled-rectangle (- x2 x1) (- y2 y1)) "yellow")
                         0.5)))) 1.5)
+  
+  )
+
+(define (align-sentence text sentence)
+  ;; call agrep
+  ;; PARAM: edit distance
+  (let ([cmd (~a "agrep -E 100 -d fjdsilfadsj --show-position "
+                 "\"" sentence "\"")])
+    (displayln (~a "-- " cmd))
+    (match-let ([(list stdout stdin pid stderr proc)
+                 (process cmd)])
+      (write-string text stdin)
+      (close-output-port stdin)
+      (displayln "-- waiting")
+      (proc 'wait)
+      (displayln "-- done")
+      (let ([output (port->string stdout)])
+        (let ([match-result (regexp-match #px"([0-9]+)-([0-9]+):"
+                                          ;; "38-91:f"
+                                          output)])
+          (if (not match-result) #f
+              (map string->number (rest match-result))))))))
+
+(module+ test
+  (align-sentence "helccliio world" "hello")
+  (align-sentence "hedjifllo world \nhellioo hello" "hello")
+  (process "ls")
+  )
+
+(define (boxes->rects boxes)
+  ;; merge boxes into rects according to their line position. What
+  ;; about the 1. on different page (or different columns) 2. line
+  ;; position does not match preciesly
+  (for/list ([group (group-by second boxes (λ (x y)
+                                             (< (abs (- x y)) 0.5)))])
+    (let ([x1 (apply min (map first group))]
+          [y1 (apply min (map second group))]
+          [x2 (apply max (map third group))]
+          [y2 (apply max (map fourth group))])
+      (list x1 x2 y1 y2))))
+
+(define (annotate-sentence pdf-file sentence)
+  ;; get text and bounding box
+  (let* ([page (pdf-page pdf-file 0)]
+         [text (page-text page)]
+         [boxes (page-text-layout page)])
+    (let ([index (align-sentence text sentence)])
+      (when index
+        (let ([start (first index)]
+              [end (second index)])
+          (let ([marked-boxes (take (drop boxes start)
+                                    (- end start))])
+            (let ([rects (boxes->rects marked-boxes)])
+              rects))))))
+  ;; align sentence in the text
+  ;; get the bounding boxes of the alignment
+  ;; merge alignments into rectangles according to their boxes
+  ;; insert highlight into mendeley database
+  )
+
+(module+ test
+  (get-group-document-ids conn "test")
+  (define pdf-file (get-document-file conn 82))
+  (page->pict (pdf-page pdf-file 0))
+  (page-text (pdf-page pdf-file 0))
+  (take (page-text-layout (pdf-page pdf-file 0)) 10)
+  (page-find-text (pdf-page pdf-file 0)
+                  "the"
+                  ;; "combine logic"
+                  ;; "combine logic and probability by"
+                  )
+  (get-highlight-spec conn 82)
+
+  (annotate-sentence
+   pdf-file
+   ;; "require space exponential"
+   "require space exponential in the size of the cliques in the underlying Markov network")
+
+  (uuid-generate)
   
   )
