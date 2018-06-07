@@ -41,16 +41,14 @@ racket cmd.rkt -g "group name" /path/to/mendeley.sqlite
 racket cmd.rkt -g "group name" --html /path/to/mendeley.sqlite
 #+END_SRC
 
-Annotation (this will add or remove highlights to the database. It
+Annotation. This will add or remove highlights to the database. It
 will add with author "Auto Scholar", and remove only highlights with
-the same author)
+the same author.
 
 #+BEGIN_SRC sh
 racket cmd.rkt --annotate -g "group name" -d <docId> --pattern "pattern" /path/to/mendeley.sqlite
 racket cmd.rkt --remove-annotation
 #+END_SRC
-
-
 
 
 * download html from publishers website
@@ -66,98 +64,3 @@ this tool seems not working with =chromium=.
 
 It will write html files to =<ID>.html= for each document.
 
-* PDF annotator
-You will need =agrep= command line utility for approximate string
-matching.
-
-The problem is, given a pdf and a sentence, find the sentence in the
-pdf, but will allow some degree of mismatching.
-
-Some problems:
-- For sentence across columns or pages, the header and footer of the
-  page will get in between.
-
-
-A sentence might across multiple lines. In this case, we need to give
-a rectangle for each line.
-
-The =pdf-find-text= library call will not work for multiple lines,
-even if giving line break as =\n=. Thus, we need to use the raw
-information of each text. So the plan is:
-INPUT: 
-- pdf file
-- sentence
-STEPS:
-1. get the text and the bounding box of pdf file
-2. align the sentence in the text
-3. get the bounding boxes of the alignment
-4. merge the alignments into rectangles
-5. insert the highlights into the mendeley database
-
-TEST:
-- Using the pdf highlights? But will it get synced into the remote?
-
-#+BEGIN_EXAMPLE
-agrep
- -E 10000 # number of allowed errors
- -d "hfdsfjadsl" # an arbitrary value to use as 'line separator', It is '\n' by default
-  --show-position # show starting index of the match
- "The approximate pattern string"
- /path/to/file/to/match
-#+END_EXAMPLE
-
-
-
-#+BEGIN_EXAMPLE
-sqlite> .schema FileHighlights
-CREATE TABLE FileHighlights (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    author VARCHAR,
-    uuid CHAR[38] NOT NULL UNIQUE,
-    documentId INTEGER NOT NULL,
-    fileHash CHAR[40] NOT NULL,
-    createdTime VARCHAR NOT NULL,
-    unlinked BOOLEAN NOT NULL,
-    color VARCHAR DEFAULT NULL,
-    profileUuid VARCHAR DEFAULT NULL,
-    FOREIGN KEY (documentId) REFERENCES Documents(id)
-);
-CREATE INDEX FileHighlights_DocumentIdIndex ON FileHighlights(documentId);
-CREATE INDEX FileHighlights_FileHashIndex ON FileHighlights(fileHash);
-sqlite> .schema FileHighlightRects
-CREATE TABLE FileHighlightRects (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    highlightId INTEGER NOT NULL,
-    page INTEGER NOT NULL,
-    x1 FLOAT NOT NULL,
-    y1 FLOAT NOT NULL,
-    x2 FLOAT NOT NULL,
-    y2 FLOAT NOT NULL,
-    FOREIGN KEY (highlightId) REFERENCES FileHighlights(id)
-);
-CREATE INDEX FileHighlightRects_highlightId ON FileHighlightRects(highlightId);
-#+END_EXAMPLE
-
-- uuid: f6e13118-85e1-464e-8da7-1137cb86da76
-- createdTime: 2017-06-10T18:45:53Z
-- unlinked false
-
-1. generate UUID for FileHighlights
-
-#+BEGIN_SRC sql
-insert into FileHighlights (uuid, documentId, fileHash, createdTime,
-unlinked) values (<uuid>, <docId>, <hash>, "2017-06-10T18:45:53Z", false)
-#+END_SRC
-
-2. get the generated id
-
-#+BEGIN_SRC sql
-select id from FileHighlights where uuid = <uuid>
-#+END_SRC
-
-3. insert FileHighlightRects
-
-#+BEGIN_SRC sql
-insert into FileHighlightRects (highlightId, page, x1, y1, x2, y2)
-values (<id>, <page>, <x1>, <y1>, <x2>, <y2>)
-#+END_SRC
