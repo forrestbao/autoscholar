@@ -25,6 +25,10 @@ def file2text(filename):
         text = html2text_bmc(html)
     elif publisher == "embo":
         text = html2text_embo(html)
+    elif publisher == "pubmed":
+        text = html2text_pubmed(html)
+
+
 
     return text
 
@@ -58,7 +62,15 @@ def determine_publisher(html):
     soup = bs4.BeautifulSoup(html, 'html.parser')
 
     publisher_url_tag = soup.find("meta", {"name":"citation_pdf_url"})
-    citation_pdf_url = publisher_url_tag["content"]
+    if publisher_url_tag:
+        citation_pdf_url = publisher_url_tag["content"] 
+    else:
+        abstract_url_tag = soup.find("meta", {"name":"citation_abstract_html_url"})
+        if abstract_url_tag:
+            citation_pdf_url = abstract_url_tag["content"]
+        else:
+            return "WARNING"
+
 
     if "sciencedirect.com" in citation_pdf_url:
         return "elsevier"
@@ -74,6 +86,8 @@ def determine_publisher(html):
         return "embo"
     elif "wiley.com" in citation_pdf_url:
         return "wiley"
+    elif "pmc" in citation_pdf_url:
+        return "pubmed"
     else:
         return "WARNING"
  
@@ -363,7 +377,7 @@ def html2text_embo(html):
 
     return all_useable_paras, []
 
-def html2text_pubmed():
+def html2text_pubmed(html):
     """Extract text from pubmed format HTML pages 
 
     Args:
@@ -379,8 +393,38 @@ def html2text_pubmed():
 
     """
 
-    pass 
+    soup = bs4.BeautifulSoup(html, 'html.parser')
+    article = soup.find("div", {"class":"article"})
 
+    # 1. get main paraphraphs, including Abstract
+    paras = article.findAll("p")
+    main_paras = [p for p in paras if (p.parent.name == "div" and re.match(r'__sec\d+', p.parent.get("id", "")) ) ]
+    # only main paragraphs have parent <div> of id in the form of __sec-\d+, including paras under a Section 
+#    headless_paras = [p for p in paras if (p.parent.name is "div" and "headless" in p.parent.get("class", ""))]
+    # some paragraphs are under a <div> node corresponding to a section without head
+    pids = [p.get("id", "__p0") for p in main_paras]
+    pids = [int(re.search(r'__p([\d]+)', ID).group(1)) for ID in pids] 
+    last_main_pid = max(pids)
+
+    main_paras = [p for p in paras if int(re.search(r'__p([\d]+)', p.get("id", "__p10000")).group(1)) <= last_main_pid]
+
+    # 2. Figure and table captions
+    caption_divs = article.findAll("div", {"class":"caption"})
+    captions = [div.p for div in caption_divs] # only one p node under a caption div
+
+    # 3. Table footnotes
+    footnote_divs = article.findAll("div", {"class":"tblwrap-foot"})
+    footnotes = [div.div for div in footnote_divs] # always a div node under the <div class="tblwrap-foot"> node 
+
+    # 4. table cells
+    table_tds = article.findAll("td")
+
+
+    # Final output 
+    ps = taglist2stringlist(main_paras + captions + footnotes)
+    tds = taglist2stringlist(table_tds)
+
+    return ps, tds
 
 def html2text_elsevier(html):
     """Extract text from an Elsevier HTML page 
