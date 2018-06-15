@@ -2,6 +2,7 @@
 # Copyleft 2018 Forrest Sheng Bao, Iowa State University
 # AGPL 3.0 
 import bs4, re
+import os
 
 def file2text(filename):
     """open a file and extract sentences from a paper. 
@@ -537,3 +538,81 @@ if __name__ == "__main__" :
     import sys
 
     text = file2text(sys.argv[1])
+
+
+    
+def test_export(dir, ids):
+    for i in ids:
+        filename = './html_output/' + str(i) + '.html'
+        with open(os.path.join(dir, str(i) + '.txt')
+                  , 'w') as f:
+            l1, l2, l3 = file2text(filename)
+            f.write('==============Paragraph('
+                    + str(len(l1))
+                    + ')================'
+                    + '\n\n\n\n\n')
+            for s in l1:
+                f.write(s)
+                f.write('\n\n\n\n')
+
+            f.write('\n\n\n\n\n\n\n'
+                    + '==============Captions('
+                    + str(len(l2))
+                    + ')================'
+                    '\n\n\n\n\n\n\n')
+
+            for s in l2:
+                f.write(s)
+                f.write('\n\n\n\n')
+
+            f.write('\n\n\n\n\n\n\n'
+                    + '==============Tables('
+                    + str(len(l3))
+                    + ')================'
+                    '\n\n\n\n\n\n\n')
+            for s in l3:
+                f.write(s)
+                f.write('\n\n\n\n')
+
+                
+def rewrite_a(s):
+    # markup = '<a href="fdsfds" title="fkd" class="fdsfd">hell<em>world</em></a>'
+    # s = bs4.BeautifulSoup(markup, 'html.parser')
+    for a in s.find_all('a'):
+        a.wrap(s.new_tag('a'))
+        a.unwrap()
+        
+if __name__ == '__test__':
+    files = list(map(lambda x: os.path.join('./html_output', x),
+                     filter(lambda x: x.endswith('.html'),
+                            os.listdir('./html_output/'))))
+    for f in files:
+        print('------ ' + f)
+        l1, l2, l3 = file2text(f)
+        print(determine_publisher(open(f).read()))
+        print(len(l1))
+        print(len(l2))
+        print(len(l3))
+
+    file2text('./html_output/50.html')
+    determine_publisher(open('./html_output/68.html').read())
+
+    springer_ids = [71, 53, 44, 77, 58]
+    elsevier_ids = [66,50,54,68,80,76,45,
+                    72,51,69,63,47,60,59,75,48]
+    wiley_ids = [55,79,70,61,43,46]
+    asm_ids = [57,65,49,64]
+    nature_ids = [67,78,73,56,62]
+    embo_ids = [89,42]
+    bmc_ids = [74]
+    pubmed_ids = [52]
+
+    test_export('./test/springer', springer_ids)
+    test_export('./test/elsevier', elsevier_ids)
+    test_export('./test/wiley', wiley_ids)
+    test_export('./test/asm', asm_ids)
+    test_export('./test/nature', nature_ids)
+    test_export('./test', embo_ids)
+    test_export('./test', bmc_ids)
+    test_export('./test', pubmed_ids)
+
