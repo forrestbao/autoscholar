@@ -123,7 +123,8 @@ def html2text_nature(html):
     for cell in table_cells:
         cell.attrs = []  # strip attributes of all table cells 
 
-    return paragraphs, table_cells
+    return (taglist2stringlist(paragraphs),
+            taglist2stringlist(table_cells))
 
 def html2text_springer(html):
     """Extract text from a Springer-style HTML page
@@ -453,20 +454,26 @@ def html2text_elsevier(html):
         """
         cross_refs = text.find_all("a", {"class":"workspace-trigger"})
         table_figure_numbers = text.find_all("span", {"class":"label"})
-        
+
 
     soup = bs4.BeautifulSoup(html, 'html.parser')
     body = soup.find('div', {'class':'Body'}) # the part without title, abstract, 
     true_body = body.find('div')
     
     paragraphs = true_body.find_all('p')
+    # fix <p><p></p></p>
+    paragraphs = list(filter(lambda x: x.parent.name != 'p', paragraphs))
     table_cells = true_body.find_all('td')
 
+    abstract = soup.find('div', {'class': 'Abstracts'})
+    paragraphs = abstract.find_all('p') + paragraphs
+    
     for cell in table_cells:
         cell.attrs = []  # strip attributes of all table cells 
 
 
-    return paragraphs, table_cells
+    return (taglist2stringlist(paragraphs),
+            taglist2stringlist(table_cells))
 
 if __name__ == "__main__" :
     import sys
