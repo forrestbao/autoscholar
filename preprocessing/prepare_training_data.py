@@ -234,6 +234,7 @@ def html2text_asm(html):
     captions = []
     for section in main_sections:
         caption_elements += section.select(".fig p")
+        caption_elements += section.select('.table p')
     captions = taglist2stringlist(caption_elements)
     decompose_list(caption_elements)
 
