@@ -228,6 +228,8 @@ def html2text_asm(html):
     for ID in range(1, first_main_pid):
         paras.append(body.find("p", {"id":"p-"+str(ID)}))
 
+    # Captions = body.find_all("div", {"class": "fig-caption"})
+    # paras += Captions
     paras  = taglist2stringlist(paras)
 
     return paras, ['']
