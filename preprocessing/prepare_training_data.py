@@ -321,29 +321,35 @@ def html2text_wiley(html):
     abstract_paras[-1] = " ".join((abstract_paras[-1]).split("\n")[:-2]).strip()
     # -2 because the copyright info has one empty line. 
 
-    # Get normal paragrahs 
     full_section = article.find("section", {"class":"article-section__full"})
-    normal_divs = full_section.findAll("div", {"class":"article-section__content"})
-    normal_paras = []
-    for div in normal_divs:
-        normal_paras += div.findAll("p")
 
     # Get table captions
     table_captions = full_section.findAll("header", {"class":"article-table-caption"})
+    table_footnotes = full_section.findAll("div", {"class":"article-section__table-footnotes"})
 
     # Get figure captions 
     figure_captions = full_section.findAll("figcaption")
     fig_cap_text = []
     for fig_cap in figure_captions:
         fig_cap_text += fig_cap.findAll("div", {"class":"accordion__content"})
+    fig_cap_str_list = taglist2stringlist(fig_cap_text)
+    # remove fig cap because so that normal paragraph will not get <p>
+    # inside it
+    decompose_list(figure_captions)
 
     # Get <td> s
     table_tds = full_section.findAll("td")
 
+    # Get normal paragrahs 
+    normal_divs = full_section.findAll("div", {"class":"article-section__content"})
+    normal_paras = []
+    for div in normal_divs:
+        normal_paras += div.findAll("p")
+        
     # Final output 
-    all_paras = normal_paras + table_captions + fig_cap_text
+    all_paras = normal_paras + table_captions + table_footnotes
     all_paras = taglist2stringlist(all_paras)
-    all_paras += abstract_paras
+    all_paras = abstract_paras + all_paras + fig_cap_str_list
 
     table_tds = taglist2stringlist(table_tds)
 
