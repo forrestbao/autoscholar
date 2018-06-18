@@ -440,9 +440,11 @@ order by FileHighlightRects.page")])
                       [subscript-segments (get-subscript-segments (page-attr page))])
                   (page->html page
                               (list (list hl-segments "hl")
-                                    (list bold-segments "b")
-                                    (list italic-segments "i")
-                                    (list subscript-segments "sub")))))))
+                                    ;; retain only <hl> to form valid htmls
+                                    ;; (list bold-segments "b")
+                                    ;; (list italic-segments "i")
+                                    ;; (list subscript-segments "sub")
+                                    ))))))
            "</body>" "</html>")))))
 
 (define (mendeley-group->html conn group-name)
