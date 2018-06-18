@@ -411,6 +411,31 @@ order by FileHighlightRects.page")])
   (get-subscript-segments (page-attr (pdf-page (get-document-file conn 60) 2)))
   )
 
+(define (sort-merge-segments segs)
+  "Sort and Merge segments if their gaps are within 5"
+  (let ([res '()])
+    (let ([x (foldl (λ (v acc)
+                      ;; (println "------")
+                      ;; (println v)
+                      ;; (println acc)
+                      (if acc
+                          (if (< (- (first v) (second acc)) 5)
+                              (list (first acc)
+                                    (max (second v) (second acc)))
+                              (begin
+                                (set! res (append res (list acc)))
+                                v))
+                          v))
+                    #f
+                    (sort segs < #:key first))])
+      (if x
+          (append res (list x))
+          res))))
+
+(module+ test
+  (sort-merge-segments '((1 3) (20 30) (4 5) (9 10)))
+  )
+
 (define (mendeley-document->html conn id)
   (let* ([f (get-document-file conn id)])
     (if (not (non-empty-string? f))
@@ -438,8 +463,12 @@ order by FileHighlightRects.page")])
                       [italic-segments (attr->index-segments
                                         (page-attr page) is-italic-font?)]
                       [subscript-segments (get-subscript-segments (page-attr page))])
+                  ;; (println "--------")
+                  ;; (println (sort-merge-segments hl-segments))
                   (page->html page
-                              (list (list hl-segments "hl")
+                              (list (list
+                                     (sort-merge-segments
+                                      hl-segments) "hl")
                                     ;; retain only <hl> to form valid htmls
                                     ;; (list bold-segments "b")
                                     ;; (list italic-segments "i")
