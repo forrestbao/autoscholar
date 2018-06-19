@@ -3,9 +3,6 @@
 ## Dependencies
 * Python 3
 * BeautifulSoup4
-* `lxml` parser
-* `agrep` command line utility
-* `nltk` and `punkt` (`nltk.download('punkt')`)
 
 ## Publisher determination
 Because different publishers have different HTML structures for papers, the publisher information is important for the correct extraction of text. 
@@ -19,3 +16,39 @@ For the following publishers, we can use domain name in the value of the `conten
 * Springer, springer.com, e.g., `<meta name="citation_pdf_url" content="https://link.springer.com/content/pdf/10.1007%2Fs00253-007-1246-8.pdf"/>`
 * EMBOPress, embopress.org, e.g., `<meta name="citation_pdf_url" content="http://msb.embopress.org/content/3/1/149.full.pdf" />`
 
+
+# Generate Training data
+Dependencies:
+* `lxml` parser
+* `agrep` command line utility
+* `nltk` and `punkt`
+
+To install those, run the following commands in shell:
+
+```shell
+apt install agrep
+pip install lxml
+pip install nltk
+```
+
+And run this in python:
+
+```python
+nltk.download('punkt')
+```
+
+Usage:
+
+```shell
+python3 generate_labeled_data.py\
+    /path/to/publisher.html\
+    /path/to/extract.html\
+    /path/to/output.csv
+```
+
+Argument description:
+- Publiser htmls: those downloaded from publisher website.
+- Extract htmls: those generated from pdfs and mendeley databases with
+  `<hl>` tags.
+- Output: a CSV file with two columns: label (0 for highlight and 1
+  otherwise) and sentence.
