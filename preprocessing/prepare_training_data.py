@@ -129,7 +129,7 @@ def html2text_nature(html):
     # find paragraphs and table cells
     for section in true_body:
         # includes plain paragraphs and detailed captions under figures
-        paragraphs = taglist2stringlist(section.find_all('p'))
+        paragraphs += taglist2stringlist(section.find_all('p'))
         cells = section.find_all('td')
         # strip attributes of all table cells 
         for cell in cells:
