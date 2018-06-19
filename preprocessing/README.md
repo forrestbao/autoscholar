@@ -3,7 +3,9 @@
 ## Dependencies
 * Python 3
 * BeautifulSoup4
-
+* `lxml` parser
+* `agrep` command line utility
+* `nltk` and `punkt` (`nltk.download('punkt')`)
 
 ## Publisher determination
 Because different publishers have different HTML structures for papers, the publisher information is important for the correct extraction of text. 
