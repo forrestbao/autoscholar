@@ -1,36 +1,27 @@
 # Preprocessing of text data in PDF/HTML
 
 This folder contains several scripts to prepare the data before machine learning stage:
-* `full\_text\_html\_extract.py`: Extract text from full-text HTML files crawled from publishers' websites. 
-* `generate\_lableled\_data.py`: Organize binary (highlighted or not) training samples into CSV format, by taking a full-text HTML file from the publisher and an HTML file extracted from PDF (with highlights stored in a Mendeley database) as inputs. 
+* `full_text_html_extract.py`: Extract full text of a paper from the webpage version of the paper on the publisher's website.  
+* `generate_labeled_data.py`: Generate the file for ML. Organize binary (highlighted or not) training samples into CSV format, by taking a full-text HTML file from the publisher and an HTML file extracted from PDF (with highlights stored in a Mendeley database) as inputs. 
 
-# `full\_text\_html\_extract.py`
-
-Dependencies: 
+## Dependencies
 * Python 3
 * BeautifulSoup4
-
-
-# `generate\_labeled\_data.py`
-
-Dependencies:
-* `lxml` parser
+* The parser lxml
 * `agrep` command line utility
 * `nltk` and `punkt`
 
 To install, run the following commands in shell:
 
 ```shell
-apt install agrep
-pip install lxml
-pip install nltk
+sudo apt install agrep
+pip3 install lxml BeautifulSoup4 nltk  
+python3 -c "import nltk; nltk.download('punkt')"
 ```
+## Extract full text of a paper `full_text_html_extract.py`
+This script is now provided as a library. Not for end users. 
 
-And run this in python:
-
-```python
-nltk.download('punkt')
-```
+## Generate the file for ML `generate_labeled_data.py`
 
 Usage:
 
@@ -41,15 +32,15 @@ python3 generate_labeled_data.py\
     /path/to/output.csv
 ```
 
-Argument description:
-- Publiser htmls: those downloaded from publisher website.
-- Extract htmls: those generated from pdfs and mendeley databases with
-  `<hl>` tags.
+Arguments: 
+- Publisher html: those downloaded from publisher website.
+- Extract html: those generated from pdfs and mendeley databases with
+  `<hl>` tags by [this script from us](../mendeley/highlight_extract)
 - Output: a CSV file with two columns: label (0 for highlight and 1
   otherwise) and sentence.
 
 
-# Note: publisher determination
+## Note: publisher determination
 Because different publishers have different HTML structures for papers, the publisher information is important for the correct extraction of text. 
 
 For the following publishers, we can use domain name in the value of the `content` attribute in the only `<meta name="citation_pdf_url">` tag. 

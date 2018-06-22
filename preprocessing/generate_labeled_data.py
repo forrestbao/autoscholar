@@ -23,7 +23,7 @@ import signal
 import time
 import argparse
 
-from prepare_training_data import file2text
+from full_text_html_extract import html2text
 
 def devide_string(string, num_interval):
     """Devide string into intervals
@@ -324,7 +324,7 @@ def generate(publisher_html, extract_html, csvfile):
     hls = [hl.get_text() for hl in soup.find_all('hl')]
 
     print('getting content ..')
-    publisher_text = file2text(publisher_html)
+    publisher_text = html2text(publisher_html)
     # FIXME add .?
     publisher_content = ''.join(publisher_text[0]
                                 + publisher_text[1]
