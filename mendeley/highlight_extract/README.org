@@ -3,11 +3,12 @@
 * Prerequisite
 
 First install [[https://racket-lang.org/][Racket]] (require 6.12 or
-higher), then install a racket package =pdf-read= (run the following
-from command line):
+higher), then install racket packages =pdf-read= and =libuuid= (run
+the following from command line):
 
 #+BEGIN_EXAMPLE
 raco pkg install pdf-read
+raco pkg install libuuid
 #+END_EXAMPLE
 
 Install =libpoppler-glib= library.
@@ -24,9 +25,10 @@ You can run the tool via =racket cmd.rkt=, or generate executable by
 Helper options:
 #+BEGIN_SRC sh
 # show help
-./cmd --help
+racket cmd.rkt --help
 # show available group names
-./cmd -l /path/to/mendeley.sqlite
+racket cmd.rkt --list-groups /path/to/mendeley.sqlite
+racket cmd.rkt --list-documents -g "group name" /path/to/mendeley.sqlite
 #+END_SRC
 
 Generate text or html. Will generate files for each documents in the
@@ -34,21 +36,18 @@ group, indexed by =documentId=.
 
 #+BEGIN_SRC sh
 # output <id>-pdf-path.txt <id>-hl.txt and <id>-full.txt
-./cmd -g your-group-name /path/to/mendeley.sqlite
+racket cmd.rkt -g "group name" /path/to/mendeley.sqlite
 # output <id>-pdf-path.txt <id>.html
-./cmd -g your-group-name --html /path/to/mendeley.sqlite
+racket cmd.rkt -g "group name" --html /path/to/mendeley.sqlite
+#+END_SRC
+
+Annotation. This will add or remove highlights to the database. It
+will add with author "Auto Scholar", and remove only highlights with
+the same author.
+
+#+BEGIN_SRC sh
+racket cmd.rkt --annotate -g "group name" -d <docId> --pattern "pattern" /path/to/mendeley.sqlite
+racket cmd.rkt --remove-annotation
 #+END_SRC
 
 
-* download html from publishers website
-
-You need to clone https://github.com/abiyani/automate-save-page-as and
-put the executable to your =$PATH=. You should also install =xdotool=
-(used by =save_page_as=). You should also install =firefox=, cause
-this tool seems not working with =chromium=.
-
-#+BEGIN_EXAMPLE
-./webpage.py -g "Group Name" /path/to/db.sqlite
-#+END_EXAMPLE
-
-It will write html files to =<ID>.html= for each document.

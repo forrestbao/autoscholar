@@ -7,11 +7,13 @@
 (require racket/cmdline)
 (require net/url)
 (require net/mime)
+(require libuuid)
 (require "pdf-read-extra.rkt")
 
 
 (provide get-group-names
          get-group-document-ids
+         get-document-title
          get-document-file
          get-highlight-spec
          mendeley-document->html
@@ -20,7 +22,9 @@
          mendeley-group->txt
          mendeley-group->html
          is-bold-font?
-         is-italic-font?)
+         is-italic-font?
+         db-annotate-document
+         remove-auto-annotate)
 
 (define (get-group-document-ids conn group-name)
   (let ([query (~a "SELECT documentId
@@ -35,8 +39,11 @@ WHERE Groups.name=\"" group-name "\"")])
     (filter non-empty-string?
             (apply append
                    (map vector->list (query-rows conn query))))))
+(define (get-document-title conn id)
+  (query-value conn (~a "select title from Documents where id=\"" id "\"")))
 
-;; (get-group-document-ids "nsf")
+;; (get-group-document-ids conn "nsf")
+;; (get-document-title conn 22)
 
 #;
 (filter (λ (id)
@@ -68,33 +75,7 @@ DocumentFiles.documentId=" id)])
 
   (display-to-file (string-join dois "\n")
                    "dois.txt"
-                   #:exists 'replace)
-
-  (define url "https://www.sciencedirect.com/sdfe/arp/pii/S1096717606001042/body?entitledToken=D20E58439E3F7E0DA93AC68109F3114DE934C22FD44F6BF8B881601CB7EEED6D4311AF0E1F1CB0D0")
-
-  (define doi (first dois))
-
-  (define doi-url (~a "http://dx.doi.org/" "10.1002/bit.25021"))
-
-  (let ([p (get-pure-port (string->url url))])
-    (let ([str (port->string p)])
-      (close-input-port p)
-      str))
-
-  (mime-analyze mime)
-  (define msg
-    (mime-analyze (get-impure-port (string->url url))))
-  
-  (message-fields msg)
-  (entity-other (message-entity msg))
-
-  (define redirect-url
-    ;; "http://doi.wiley.com/10.1002/bit.25021"
-    ;; "http://onlinelibrary.wiley.com/resolve/doi?DOI=10.1002/bit.25021"
-    ;; "https://onlinelibrary.wiley.com/doi/abs/10.1002/bit.25021"
-    "https://onlinelibrary.wiley.com/doi/abs/10.1002/bit.25021?cookieSet=1")
-  
-  )
+                   #:exists 'replace))
 
 (define (get-document-hash conn id)
   (let ([query (~a "SELECT Files.hash from Files LEFT JOIN
@@ -107,6 +88,12 @@ DocumentFiles.documentId=" id)])
 ;; (get-document-hash-from-id 38)
 
 (define (mendeley-rect->pdf-read-rect pdf rect)
+  (match-let ([(list x1 y1 x2 y2) rect])
+    (let ([height (second (page-size pdf))])
+      (list x1 (- height y2) x2 (- height y1)))))
+
+;; this is exactly the same as reverse
+(define (pdf-read-rect->mendeley-rect pdf rect)
   (match-let ([(list x1 y1 x2 y2) rect])
     (let ([height (second (page-size pdf))])
       (list x1 (- height y2) x2 (- height y1)))))
@@ -135,6 +122,55 @@ order by FileHighlightRects.page")])
                 (map convert
                      ;; remove records that contains sql-null
                      (map vector->list (query-rows conn query)))))))
+
+;; FIXME change format of the coordinates
+(define (insert-highlight conn id rects)
+  (let ([page (pdf-page  (get-document-file conn id) 0)]
+        [pagenum (first rects)])
+    (for ([rect (second rects)])
+      (match-let ([(list x1 y1 x2 y2)
+                   (pdf-read-rect->mendeley-rect page rect)])
+        (let ([q (λ (s)
+                   (~a "\"" s "\""))])
+          (let* ([uuid (uuid-generate)]
+                 [sql-file-highlights
+                  (~a "insert into FileHighlights "
+                      "(author, uuid, documentId, fileHash, createdTime,unlinked,color)"
+                      " values ("
+                      (q "Auto Scholar") ","
+                      (q uuid) "," (q (number->string id)) ","
+                      (q (get-document-hash conn id)) ","
+                      (q "2017-06-10T18:45:53Z") "," (q "false")
+                      "," (q "#fff5ad") ")")]
+                 [sql-hlid (~a "select id from FileHighlights where uuid = " (q uuid))])
+            ;; (displayln "executing ..")
+            ;; (displayln sql-file-highlights)
+            (query-exec conn sql-file-highlights)
+            ;; (displayln "querying highlight ID ..")
+            (let ([hlid (query-value conn sql-hlid)])
+              ;; (displayln (~a "highlight ID: " hlid))
+              (let ([sql-file-highlight-rects
+                     (~a "insert into FileHighlightRects "
+                         "(highlightId, page, x1, y1, x2, y2)"
+                         " values "
+                         "(" (q hlid) "," (number->string pagenum)
+                         "," x1 "," y1 "," x2 "," y2 ")")])
+                ;; (displayln "executing ..")
+                ;; (displayln sql-file-highlight-rects)
+                (query-exec conn sql-file-highlight-rects)
+                ;; (displayln "done!")
+                ))))))) )
+
+(define (remove-auto-annotate conn)
+  ;; 1. select uuid from filehighlights where author=AutoScholar
+  ;; 2. delete from filehighlightrects where uuid=uuid
+  ;; 3. delete from filehighlights where author=AutoScholar
+  (let ([q (~a "select uuid from FileHighlights where author=\"Auto Scholar\"")])
+    (for ([uuid (query-list conn q)])
+      (let ([dq1 (~a "delete from FileHighlightRects where id=\"" uuid "\"")]
+            [dq2 (~a "delete from FileHighlights where author=\"Auto Scholar\"")])
+        (query-exec conn dq1)
+        (query-exec conn dq2)))))
 
 ;; (get-highlight-spec conn 67)
 
@@ -375,6 +411,31 @@ order by FileHighlightRects.page")])
   (get-subscript-segments (page-attr (pdf-page (get-document-file conn 60) 2)))
   )
 
+(define (sort-merge-segments segs)
+  "Sort and Merge segments if their gaps are within 5"
+  (let ([res '()])
+    (let ([x (foldl (λ (v acc)
+                      ;; (println "------")
+                      ;; (println v)
+                      ;; (println acc)
+                      (if acc
+                          (if (< (- (first v) (second acc)) 5)
+                              (list (first acc)
+                                    (max (second v) (second acc)))
+                              (begin
+                                (set! res (append res (list acc)))
+                                v))
+                          v))
+                    #f
+                    (sort segs < #:key first))])
+      (if x
+          (append res (list x))
+          res))))
+
+(module+ test
+  (sort-merge-segments '((1 3) (20 30) (4 5) (9 10)))
+  )
+
 (define (mendeley-document->html conn id)
   (let* ([f (get-document-file conn id)])
     (if (not (non-empty-string? f))
@@ -402,11 +463,17 @@ order by FileHighlightRects.page")])
                       [italic-segments (attr->index-segments
                                         (page-attr page) is-italic-font?)]
                       [subscript-segments (get-subscript-segments (page-attr page))])
+                  ;; (println "--------")
+                  ;; (println (sort-merge-segments hl-segments))
                   (page->html page
-                              (list (list hl-segments "hl")
-                                    (list bold-segments "b")
-                                    (list italic-segments "i")
-                                    (list subscript-segments "sub")))))))
+                              (list (list
+                                     (sort-merge-segments
+                                      hl-segments) "hl")
+                                    ;; retain only <hl> to form valid htmls
+                                    ;; (list bold-segments "b")
+                                    ;; (list italic-segments "i")
+                                    ;; (list subscript-segments "sub")
+                                    ))))))
            "</body>" "</html>")))))
 
 (define (mendeley-group->html conn group-name)
@@ -447,8 +514,7 @@ order by FileHighlightRects.page")])
 
 (module+ test
   (define conn
-    (sqlite3-connect #:database "/home/hebi/.local/share/data/Mendeley Ltd./Mendeley Desktop/lihebi.com@gmail.com@www.mendeley.com.sqlite"
-                     #:mode 'read-only))
+    (sqlite3-connect #:database "/home/hebi/.local/share/data/Mendeley Ltd./Mendeley Desktop/lihebi.com@gmail.com@www.mendeley.com.sqlite"))
 
   ;; (query-rows conn "select * from Groups")
   ;; (query-rows conn "select * from FileHighlights")
@@ -462,6 +528,11 @@ order by FileHighlightRects.page")])
   (get-group-document-ids conn "NSF project")
   (mendeley-group->txt conn "NSF project")
   (mendeley-group->html conn "NSF project")
+
+
+  
+  (length (page-text-layout (pdf-page pdf-file 0)))
+  (string-length (page-text (pdf-page pdf-file 0)))
 
   (display-to-file
    (mendeley-document->html conn 48)
@@ -495,5 +566,125 @@ order by FileHighlightRects.page")])
                        (cellophane
                         (colorize (filled-rectangle (- x2 x1) (- y2 y1)) "yellow")
                         0.5)))) 1.5)
+  
+  )
+
+(define (align-sentence text pattern)
+  ;; call agrep
+  ;; PARAM: edit distance
+  ;; return: '(cost start end)
+  ;; remove brackets in pattern
+  (let ([p (regexp-replace* #rx"[][()]+" pattern "")])
+    (let ([cmd (~a "agrep -E 100 -d fjdsilfadsj --show-position --show-cost "
+                   "\"" p "\"")])
+      ;; (displayln (~a "-- " cmd))
+      (match-let ([(list stdout stdin pid stderr proc)
+                   (process cmd)])
+        (write-string text stdin)
+        (close-output-port stdin)
+        ;; (displayln "-- waiting")
+        (proc 'wait)
+        ;; (displayln "-- done")
+        (let ([output (port->string stdout)])
+          (let ([match-result (regexp-match #px"([0-9]+):([0-9]+)-([0-9]+):"
+                                            ;; "38-91:f"
+                                            output)])
+            (if (not match-result) #f
+                (begin
+                  (map string->number (rest match-result))))))))))
+
+(module+ test
+  (align-sentence "helccliio world" "hello")
+  (align-sentence "hedjifllo world \nhellioo hello" "hello")
+  (process "ls")
+  )
+
+(define (boxes->rects boxes)
+  ;; merge boxes into rects according to their line position. What
+  ;; about the 1. on different page (or different columns) 2. line
+  ;; position does not match preciesly
+  ;;
+  ;; remove if x1 and x2 are same
+  (for/list ([group (group-by second (filter-not (λ (b)
+                                                   (= (first b) (third b)))
+                                                 boxes)
+                              (λ (x y)
+                                (< (abs (- x y)) 0.5)))])
+    (let ([x1 (apply min (map first group))]
+          [y1 (apply min (map second group))]
+          [x2 (apply max (map third group))]
+          [y2 (apply max (map fourth group))])
+      (list x1 y1 x2 y2))))
+
+(define (annotate-sentence pdf-file sentence)
+  ;; get text and bounding box. this only support one alignment,
+  ;; because the interface of agrep. The python interface also
+  ;; supports only one match output.
+  ;;
+  ;; I'm going to do this once for each page, and highlight the best
+  ;; one
+  ;;
+  ;; page number start from 1
+  ;;
+  ;; Return: '((pagenum ((x1, y1, x2, y2) ...)))
+  (let ([lst (filter-not
+              void?
+              (for/list ([i (pdf-count-pages pdf-file)])
+                (let* ([page (pdf-page pdf-file i)]
+                       [text (page-text page)]
+                       [boxes (page-text-layout page)])
+                  ;; align sentence in the text
+                  (let ([index (align-sentence text sentence)])
+                    (when index
+                      (let ([cost (first index)]
+                            [start (second index)]
+                            [end (third index)])
+                        ;; get the bounding boxes of the alignment
+                        (let ([marked-boxes (take (drop boxes start)
+                                                  (- end start))])
+                          ;; merge alignments into rectangles according to their boxes
+                          (let ([rects (boxes->rects marked-boxes)])
+                            (list cost (add1 i) rects)))))))))])
+    (if (empty? lst) (list)
+        (begin
+          (list (rest
+                (argmin
+                 (λ (x) (first x))
+                 lst)))))))
+
+(define (db-annotate-document conn id sentence)
+  (let ([pdf-file (get-document-file conn id)])
+    (for ([rect (annotate-sentence pdf-file sentence)])
+      ;; insert highlight into mendeley database
+      (displayln "inserting highlight ..")
+      (insert-highlight conn id rect))))
+
+
+(module+ test
+  #;
+  (define conn
+    (sqlite3-connect #:database "/home/hebi/.local/share/data/Mendeley Ltd./Mendeley Desktop/lihebi.com@gmail.com@www.mendeley.com.sqlite"))
+
+  (get-group-document-ids conn "test")
+  (define pdf-file (get-document-file conn 82))
+  (page->pict (pdf-page pdf-file 0))
+  (page-text (pdf-page pdf-file 0))
+  (take (page-text-layout (pdf-page pdf-file 0)) 10)
+  (get-highlight-spec conn 82)
+
+  ;; annotate
+  (db-annotate-document conn 82
+                        ;; "formulas in finite first-order logic"
+                        "combine a logical language (e.g., Prolog, description")
+  
+  (remove-auto-annotate conn)
+
+  ;; TODO close db
+  ;; TODO multiple page
+
+  (insert-highlight
+   conn 82
+   '(2 ((336.94002000000023 254.79452064 541.2986349600002 266.79950184))))
+
   
   )
