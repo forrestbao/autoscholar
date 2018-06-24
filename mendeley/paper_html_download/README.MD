@@ -25,7 +25,7 @@ option, the default output dir is `"html_output"`. If the file already
 exists, it will be skipped.
 
 There are two ways to retrieve web url for a paper, either
-automatically resolve the DOI of the paper from http://dx.doi.org, or
+automatically resolve the DOI of the paper from https://doi.org, or
 by extracting the url in mendeley database. In case of both are
 available, the preference will be determined by the `--prefer`
 argument.

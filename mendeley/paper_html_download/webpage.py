@@ -7,7 +7,7 @@ import os
 import argparse
 
 
-dxdoi = 'http://dx.doi.org/'
+dxdoi = 'https://doi.org/'
 
 
 def db_get_document_ids(cursor, group_name=''):
