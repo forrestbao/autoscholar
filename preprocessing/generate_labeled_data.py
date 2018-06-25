@@ -162,7 +162,7 @@ def fuzzy_search(string, pattern, max_dist=120):
     # pattern should not contain brackets
     pattern = re.sub(r'[()\[\]]', '', pattern)
     # run agrep in shell
-    cmd = ['agrep', '-E', str(max_dist), '-d',
+    cmd = ['tre-agrep', '-E', str(max_dist), '-d',
            'fjdsilfadsj', '--show-position',
            '--show-cost',
            pattern,
