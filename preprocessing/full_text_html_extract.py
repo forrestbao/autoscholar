@@ -4,8 +4,8 @@
 import bs4, re
 import os
 
-def file2text(filename):
-    """open a file and extract sentences from a paper. 
+def html2text(filename):
+    """open an HTML file and extract sentences from a paper. 
     """
     with open(filename, 'r') as f:
         html = f.read()
