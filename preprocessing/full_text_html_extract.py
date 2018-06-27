@@ -394,6 +394,8 @@ def html2text_embo(html):
         1. Subscripts, superscripts, and italic tags are preserved 
         2. Unknown how tables are represented because example paper has no tables. 
 
+        Example paper: http://msb.embopress.org/content/3/1/149
+
     """
 
     soup = bs4.BeautifulSoup(html, 'html.parser')
@@ -428,6 +430,7 @@ def html2text_pubmed(html):
         Subscripts, superscripts, and italic tags are preserved 
         <p> and <td> tags are preserved
 
+    Example paper: http://www.pubmedcentral.nih.gov/articlerender.fcgi?artid=123913&tool=pmcentrez&rendertype=abstract 
 
     """
 
@@ -482,7 +485,10 @@ def html2text_elsevier(html):
 
     Notes:
         Subscripts, superscripts, and italic tags are preserved 
-        <p> and <td> tags are preserved 
+        <p> and <td> tags are preserved
+
+        Example paper: 
+
     """
 
     def remove_unwanted(text):
