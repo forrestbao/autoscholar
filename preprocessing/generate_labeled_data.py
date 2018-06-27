@@ -222,7 +222,7 @@ def merge_sort_indexes(indexes, gap=5):
 
 
 def complete_indexes(indexes, upper):
-    """return the complete indexes, up to upper
+    """OBSOLETE return the complete indexes, up to upper
 
     Precondition: indexes are sorted after merge_sort_indexes
     
@@ -293,6 +293,8 @@ def recover_tag(index, removed_indexes):
     """Recover the indexes by considering the removed_indexes back.
     """
     def func(pos):
+        # FIXME in case of (r[0] = pos), should we put it before or
+        # after?
         return pos + sum([r[1] for r in removed_indexes if r[0] < pos])
     return func(index[0]), func(index[1])
 
@@ -310,9 +312,7 @@ def recover_unicode(index, unicode_indexes):
     return func(index[0]), func(index[1])
     
 
-def generate(publisher_html, extract_html, csvfile):
-    # publisher_html = './html_output/67.html'
-    # extract_html = '../test/html/67.html'
+def generate(publisher_html, extract_html, output_file):
     # open files
     # get all highlights
     # align highlights
@@ -326,10 +326,11 @@ def generate(publisher_html, extract_html, csvfile):
     print('getting content ..')
     publisher_text = html2text(publisher_html)
     # FIXME add .?
-    publisher_content = ''.join(publisher_text[0]
-                                + publisher_text[1]
-                                # FIXME table cells do not work
-                                + publisher_text[2])
+    # use double newlines to separate
+    publisher_content = '\n\n'.join(publisher_text[0]
+                                    + publisher_text[1]
+                                    # FIXME table cells do not work
+                                    + publisher_text[2])
     # collapse (white)space
     publisher_content = re.sub(r' +', ' ', publisher_content)
 
@@ -355,34 +356,30 @@ def generate(publisher_html, extract_html, csvfile):
                                  indexes))
     # into two groups, highlight or not
     hl_indexes = merge_sort_indexes(recovered_indexes)
-    nonhl_indexes = complete_indexes(hl_indexes,
-                                     len(publisher_content))
-    # FIXME (0,0)
-    highlights = [publisher_content[index[0]:index[1]]
-                  for index in hl_indexes]
-    non_highlights = [publisher_content[index[0]:index[1]]
-                      for index in nonhl_indexes]
-    # print('highlights: ')
-    # print(hl_indexes)
-    # print('non_highlights:')
-    # print(nonhl_indexes)
-    
-    # for each group, do sentence separation by '.'
-    highlights = extend_lists([nltk.sent_tokenize(s) for s in highlights])
-    non_highlights = extend_lists([nltk.sent_tokenize(s)
-                                   for s in non_highlights])
-    # filter short sentences (OPTIONAL)
-    highlights = [hl for hl in highlights if len(hl) > 5]
-    non_highlights = [hl for hl in non_highlights if len(hl) > 5]
-    print('writing csv ..')
-    # write CSV
-    # should this be in order???
-    # now, it is out of order
-    with open(csvfile, 'w') as f:
-        writer = csv.writer(f)
-        # add label
-        writer.writerows([(0, hl) for hl in highlights])
-        writer.writerows([(1, hl) for hl in non_highlights])
+
+    # Now, insert the <hl> tags for the hl_indexes, into the
+    # publisher_content
+
+    output = '<html><meta charset="UTF-8"><head>'
+    output += '<style> hl { background-color: yellow; } </style>'
+    output += '</head>\n'
+    output += '<body>\n'
+    previous_index = 0
+    for index in hl_indexes:
+        output += publisher_content[previous_index:index[0]]
+        # NOTE: since adding <hl> does not consider the validity of
+        # html tags, the output can sometimes be
+        # <span>...<hl></span>..</hl>, which will not be shown in
+        # browser, and may not be shown using bs4
+        output += '<hl>'
+        output += publisher_content[index[0]:index[1]]
+        output += '</hl>'
+        previous_index = index[1]
+    output += '</body></html>\n'
+
+    print('writing output ..')
+    with open(output_file, 'w') as f:
+        f.write(output)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

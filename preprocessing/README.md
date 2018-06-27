@@ -29,14 +29,13 @@ Usage:
 python3 generate_labeled_data.py\
     /path/to/publisher.html\
     /path/to/extract.html\
-    /path/to/output.csv
+    /path/to/output.html
 ```
 
 Arguments: 
 - Publisher html: an HTML page downloaded from publisher website by [the paper html download script from us](../mendeley/paper_html_download).
 - Extract html: an HTML page generated from the PDF and the mendeley database with `<hl>` tags by [the highlight extraction script from us](../mendeley/highlight_extract)
-- Output: a CSV file with two columns: label (0 for highlight and 1
-  otherwise) and sentence.
+- Output: an HTML file with highlighted sentences marked with <hl></hl>
 
 
 ## Note: publisher determination
