@@ -293,8 +293,6 @@ def recover_tag(index, removed_indexes):
     """Recover the indexes by considering the removed_indexes back.
     """
     def func(pos):
-        # FIXME in case of (r[0] = pos), should we put it before or
-        # after?
         return pos + sum([r[1] for r in removed_indexes if r[0] < pos])
     return func(index[0]), func(index[1])
 
@@ -376,10 +374,34 @@ def generate(publisher_html, extract_html, output_file):
         output += '</hl>'
         previous_index = index[1]
     output += '</body></html>\n'
+    # move <hl> into inner most, this seems to solve the out-of-order
+    # problem for html tags
+    output = reorder_hl(output)
 
     print('writing output ..')
     with open(output_file, 'w') as f:
         f.write(output)
+
+def reorder_hl(s):
+    """Reorder <hl> and </hl> to move them as inside as possible among all
+    tags
+
+    FIXME <hl></hl>
+
+    >>> reorder_hl('<hl><p><span>hello</hl>')
+    '<p><span><hl>hello</hl>'
+    >>> reorder_hl('<hl></p>xx</span></hl>')
+    '</p><hl>xx</hl></span>'
+    >>> reorder_hl('<hl><x>cc</hl></x> <hl> <p class="SimplePara">Higher')
+    '<x><hl>cc</hl></x>  <p class="SimplePara"><hl>Higher'
+    >>> reorder_hl('<span class="CaptionNumber">Fig. 6<hl></span> <p class="SimplePara">Higher cell')
+    '<span class="CaptionNumber">Fig. 6</span> <p class="SimplePara"><hl>Higher cell'
+
+    """
+    s = re.sub(r'(<hl>)((?:\s*<[^>]*>)*)', r'\2\1', s)
+    s = re.sub(r'((?:<[^>]*>\s*)*)(</hl>)', r'\2\1', s)
+    return s
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
