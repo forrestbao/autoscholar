@@ -1,7 +1,7 @@
 # Extract text information of a paper from the publisher's website 
 # Copyleft 2018 Forrest Sheng Bao, Iowa State University
 # AGPL 3.0 
-import bs4, re
+import bs4, re, itertools
 import os
 
 def html2text(filename):
@@ -11,6 +11,7 @@ def html2text(filename):
         html = f.read()
 
     publisher = determine_publisher(html)
+    print ("This paper is by {}".format(publisher))
 
     if publisher == "elsevier":
         text = html2text_elsevier(html)
@@ -29,12 +30,10 @@ def html2text(filename):
     elif publisher == "pubmed":
         text = html2text_pubmed(html)
 
-
-
     return text
 
 def children2string(BS4Tag):
-    """Given a BS4 tag, concatenate all its children to into a string 
+    """Given a BS4 tag, concatenate all its children into a string 
     """
     return "".join(map(str, list(BS4Tag.children)))
 
@@ -172,11 +171,16 @@ def html2text_springer(html):
     paragraphs += taglist2stringlist(p_para)
 
     # 3. Tables 
-    caption_elements = body.find_all("div", {"class":"CaptionContent"})
+    caption_paras = body.find_all("p", {"class":"SimplePara"})
+    caption_paras = [p for p in caption_paras if p.parent.name=="div" and "CaptionContent" in p.parent.get("class", [])]
+#    caption_elements = body.find_all("div", {"class":"CaptionContent"})
+#    caption_paras = [ e.findAll("p", {"class":"SimplePara"}) for e in caption_elements]
+
+
     Footers = body.find_all("div", {"class":"TableFooter"})
     # Get both <span> for table/figure number, and the
     # caption/footnote in <p class="SimplePara">
-    captions += taglist2stringlist(caption_elements)
+    captions += taglist2stringlist(caption_paras)
     captions += taglist2stringlist(Footers)
 
     # 4. Table contents
@@ -354,15 +358,21 @@ def html2text_wiley(html):
 
     # Get table captions
     table_captions = full_section.select('header.article-table-caption')
-    table_footnotes = full_section.findAll("div", {"class":"article-section__table-footnotes"})
+    for c in table_captions:
+        c.span.decompose() # drop the part: <span>Table I</span>
+
+    table_footnotes = full_section.select("div.article-section__table-footnotes > ul > li")
+    for f in table_footnotes:
+        if f.span: 
+            f.span.decompose() # drop the <span> that is for footnote numbering 
+
     captions += taglist2stringlist(table_captions)
     captions += taglist2stringlist(table_footnotes)
 
     # Get figure captions 
     figure_captions = full_section.findAll("figcaption")
-    fig_cap_text = []
-    for fig_cap in figure_captions:
-        fig_cap_text += fig_cap.findAll("div", {"class":"accordion__content"})
+    fig_cap_text = full_section.select("figcaption.figure__caption div p")
+
     captions += taglist2stringlist(fig_cap_text)
     # remove fig cap because so that normal paragraph will not get <p>
     # inside it
@@ -543,7 +553,7 @@ def html2text_elsevier(html):
 if __name__ == "__main__" :
     import sys
 
-    text = file2text(sys.argv[1])
+    text = html2text(sys.argv[1])
 
 
     
