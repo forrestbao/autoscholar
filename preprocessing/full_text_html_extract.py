@@ -10,6 +10,13 @@ def html2text(filename):
     with open(filename, 'r') as f:
         html = f.read()
 
+    def exit_cleanup(a_str):
+        """Clean up each block of text from the paper
+        """
+        a_str = re.sub(' +',' ', a_str) # get rid of multiple white space
+        a_str = a_str.replace("\n", '') # get rid of line breaks
+        return a_str
+
     publisher = determine_publisher(html)
     print ("This paper is by {}".format(publisher))
 
@@ -29,6 +36,8 @@ def html2text(filename):
         text = html2text_embo(html)
     elif publisher == "pubmed":
         text = html2text_pubmed(html)
+
+    text = [list(map(exit_cleanup, t)) for t in text]
 
     return text
 
@@ -337,6 +346,11 @@ def html2text_wiley(html):
     Notes:
         test on 296.html 
     """
+
+    def true_fig_cap(tag):
+        if tag.name == "div" and tag.get("class", []) == [] and tag.parent.name == "figcaption":
+            return True
+
     soup = bs4.BeautifulSoup(html, 'html.parser')
     article_body = soup.find("div", {"class":"article__body"})
     article = article_body.find("article")
@@ -370,12 +384,14 @@ def html2text_wiley(html):
     captions += taglist2stringlist(table_footnotes)
 
     # Get figure captions 
-    figure_captions = full_section.findAll("figcaption")
-    fig_cap_text = full_section.select("figcaption.figure__caption div")
-
+#    fig_cap_text = full_section.select("figcaption.figure__caption div")
+    fig_cap_text = full_section.findAll(true_fig_cap)
+    fig_cap_text = [div.p if div.p else div for div in fig_cap_text]
     captions += taglist2stringlist(fig_cap_text)
+
     # remove fig cap because so that normal paragraph will not get <p>
     # inside it
+    figure_captions = full_section.findAll("figcaption")
     decompose_list(figure_captions)
 
     # Get <td> s
