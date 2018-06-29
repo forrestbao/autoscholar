@@ -371,7 +371,7 @@ def html2text_wiley(html):
 
     # Get figure captions 
     figure_captions = full_section.findAll("figcaption")
-    fig_cap_text = full_section.select("figcaption.figure__caption div p")
+    fig_cap_text = full_section.select("figcaption.figure__caption div")
 
     captions += taglist2stringlist(fig_cap_text)
     # remove fig cap because so that normal paragraph will not get <p>
