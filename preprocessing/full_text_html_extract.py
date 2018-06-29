@@ -547,8 +547,26 @@ def html2text_elsevier(html):
         td.attrs = []
     table_cells = taglist2stringlist(tds)
 
+    # remove <span> in *string-level*
+    paragraphs = remove_span_list(paragraphs)
+    captions = remove_span_list(captions)
+    table_cells = remove_span_list(table_cells)
+
     return paragraphs, captions, table_cells
-           
+
+
+def remove_span(s):
+    """Remove <span ...> and </span>
+    >>> remove_span('<span class="hello"> world </span>')
+    ' world '
+    """
+    s = re.sub(r'<span[^>]*>', '', s)
+    s = re.sub(r'</span>', '', s)
+    return s
+
+def remove_span_list(lst):
+    return list(map(remove_span, lst))
+
 
 if __name__ == "__main__" :
     import sys
