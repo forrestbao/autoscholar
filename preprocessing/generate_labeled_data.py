@@ -396,8 +396,12 @@ def reorder_hl(s):
     '<x><hl>cc</hl></x>  <p class="SimplePara"><hl>Higher'
     >>> reorder_hl('<span class="CaptionNumber">Fig. 6<hl></span> <p class="SimplePara">Higher cell')
     '<span class="CaptionNumber">Fig. 6</span> <p class="SimplePara"><hl>Higher cell'
-
+    >>> reorder_hl('<hl>  </hl>')
+    ''
     """
+    # remove <hl></hl>
+    s = re.sub(r'<hl>\s*</hl>', r'', s)
+    # reorder
     s = re.sub(r'(<hl>)((?:\s*<[^>]*>)*)', r'\2\1', s)
     s = re.sub(r'((?:<[^>]*>\s*)*)(</hl>)', r'\2\1', s)
     return s
