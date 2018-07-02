@@ -373,6 +373,7 @@ def generate(publisher_html, extract_html, output_file):
         output += publisher_content[index[0]:index[1]]
         output += '</hl>'
         previous_index = index[1]
+    output += publisher_content[previous_index:]
     output += '</body></html>\n'
     # move <hl> into inner most, this seems to solve the out-of-order
     # problem for html tags
