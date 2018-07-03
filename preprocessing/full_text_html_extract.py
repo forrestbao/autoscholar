@@ -292,6 +292,21 @@ def html2text_bmc(html):
 
     main = soup.find("main")
 
+    # 0. Clean up the HTML.
+    decompose_list(main.find_all("span"))
+
+    for e in main.select("em"):
+        e.attrs={}
+
+    for e in main.select("sub"):
+        e.attrs={}
+
+    for strong in soup.select('strong'):
+#        new_tag=soup.new_tag("b")
+#        new_tag.string=strong.string
+#        strong.replace_with(new_tag) 
+        strong.unwrap()
+
     # 1. Paragraphs not right bbefore figures/tables
     # All paragraphs not before figures/tables 
     AllParas = main.findAll("p", {"class":"Para"})
@@ -310,7 +325,7 @@ def html2text_bmc(html):
     paragraphs += taglist2stringlist(Paras)
 
     # 2. Captions and footers of figures/tables 
-    captions_elements = main.find_all("div", {"class":"CaptionContent"})
+    captions_elements = main.select('  div[class="CaptionContent"] > p[class="SimplePara"] ')
     footers  = main.find_all("div", {"class":"TableFooter"})
 
     captions += taglist2stringlist(captions_elements)
