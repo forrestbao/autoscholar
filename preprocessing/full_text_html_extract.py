@@ -13,7 +13,8 @@ def html2text(filename):
     def exit_cleanup(a_str):
         """Clean up each block of text from the paper
         """
-        a_str = re.sub(' +',' ', a_str) # get rid of multiple white space
+        a_str = re.sub(' +',' ', a_str) # get rid of multiple white spaces
+        a_str = re.sub('-+','-', a_str) # get rid of multiple dashes
         a_str = a_str.replace("\n", '') # get rid of line breaks
         return a_str
 
@@ -111,7 +112,7 @@ def html2text_nature(html):
 
     Notes:
         Subscripts, superscripts, and italic tags are preserved 
-        <p> and <td> tags are preserved
+        <td> tags are preserved
 
     """
     soup = bs4.BeautifulSoup(html, 'html.parser')
@@ -157,7 +158,7 @@ def html2text_springer(html):
 
     Notes:
         Subscripts, superscripts, and italic tags are preserved 
-        <p> and <td> tags are preserved
+        <td> tags are preserved
 
     """
 
@@ -168,6 +169,20 @@ def html2text_springer(html):
 
     main = soup.find("main")
     article = main.find("article")
+ 
+    # 0. Clean up the HTML.
+    decompose_list(main.find_all("span"))
+
+    for e in main.select("em"):
+        e.attrs={}
+        e.name= "i" 
+
+    for strong in soup.select('strong'):
+#        new_tag=soup.new_tag("b")
+#        new_tag.string=strong.string
+#        strong.replace_with(new_tag) 
+        strong.unwrap()
+
 
     # 1. Abstract 
     Abs_section = article.find("section", {"class":"Abstract"})
@@ -281,7 +296,7 @@ def html2text_bmc(html):
 
     Notes:
         Subscripts, superscripts, and italic tags are preserved 
-        <p> and <td> tags are preserved
+        <td> tags are preserved
 
     """
 
@@ -297,6 +312,7 @@ def html2text_bmc(html):
 
     for e in main.select("em"):
         e.attrs={}
+        e.name="i"
 
     for e in main.select("sub"):
         e.attrs={}
@@ -351,15 +367,12 @@ def html2text_wiley(html):
         html (str): a string in HTML format
 
     Returns:
-        (list of str, list of str): text from paragraphs/captions, and text from table contents
+        list of lists of str: text from paragraphs, captions, and table cells
 
     Notes:
         Subscripts, superscripts, and italic tags are preserved 
-        <p> and <td> tags are preserved
+        <td> tags are preserved
 
-
-    Notes:
-        test on 296.html 
     """
 
     def true_fig_cap(tag):
@@ -372,7 +385,10 @@ def html2text_wiley(html):
 
     captions = []
     paragraphs = []
-    
+ 
+    # 0. Clean up the HTML
+    decompose_list(article.findAll('span', {})) # Safe to do so 
+   
     # Get abstract 
     abstract_section = article.find("section",
                                     {"class":"article-section__abstract"})
@@ -387,13 +403,13 @@ def html2text_wiley(html):
 
     # Get table captions
     table_captions = full_section.select('header.article-table-caption')
-    for c in table_captions:
-        c.span.decompose() # drop the part: <span>Table I</span>
+#    for c in table_captions:
+#        c.span.decompose() # drop the part: <span>Table I</span>
 
     table_footnotes = full_section.select("div.article-section__table-footnotes > ul > li")
-    for f in table_footnotes:
-        if f.span: 
-            f.span.decompose() # drop the <span> that is for footnote numbering 
+#    for f in table_footnotes:
+#        if f.span: 
+#            f.span.decompose() # drop the <span> that is for footnote numbering 
 
     captions += taglist2stringlist(table_captions)
     captions += taglist2stringlist(table_footnotes)
