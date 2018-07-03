@@ -323,6 +323,10 @@ def generate(publisher_html, extract_html, output_file):
 
     print('getting content ..')
     publisher_text = html2text(publisher_html)
+
+    # Add a line break at the end of each paragraph
+    publisher_text = [[x + "<br><br>" for x in y ] for y in publisher_text]
+
     # FIXME add .?
     # use double newlines to separate
     publisher_content = '\n\n'.join(publisher_text[0]
@@ -330,6 +334,7 @@ def generate(publisher_html, extract_html, output_file):
                                     # FIXME table cells do not work
 #                                    + publisher_text[2]
                                     )
+
     # collapse (white)space
     publisher_content = re.sub(r' +', ' ', publisher_content)
 
