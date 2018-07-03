@@ -328,7 +328,8 @@ def generate(publisher_html, extract_html, output_file):
     publisher_content = '\n\n'.join(publisher_text[0]
                                     + publisher_text[1]
                                     # FIXME table cells do not work
-                                    + publisher_text[2])
+#                                    + publisher_text[2]
+                                    )
     # collapse (white)space
     publisher_content = re.sub(r' +', ' ', publisher_content)
 
