@@ -326,7 +326,7 @@ order by FileHighlightRects.page")])
                       [letter (in-string text)])
              (~a (segment-prefix i segments)
                  (string-replace (string letter)
-                                 "\n" "</br>\n")
+                                 "\n" "<br/>\n")
                  (segment-suffix i segments))))))
 
 (define (get-document-text conn id)
