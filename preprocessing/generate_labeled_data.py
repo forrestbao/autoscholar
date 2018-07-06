@@ -80,7 +80,7 @@ def fuzzy_search_wrapper(string, pattern, max_dist=100):
         res.append((begin, end))
     # merge
     # print(res)
-    res = merge_sort_indexes(res, gap=20)
+    res = merge_sort_indexes(res, gap=100)
     # print(res)
     # print(pattern)
     # FIXME but I need to make sure they are actually continuous
@@ -164,7 +164,16 @@ def fuzzy_search(string, pattern, max_dist=120):
     # run agrep in shell
     cmd = ['tre-agrep', '-E', str(max_dist), '-d',
            'fjdsilfadsj', '--show-position',
+           # treat pattern as literal. This should increase
+           # performance
+           '--literal',
+           # only match whole word
+           '--word-regexp',
            '--show-cost',
+           '--delete-cost=1',
+           '--insert-cost=1',
+           # disable direct substitute
+           '--substitute-cost=3',
            pattern,
            fp.name]
     # print(' '.join(cmd))
@@ -308,7 +317,69 @@ def recover_unicode(index, unicode_indexes):
     def func(pos):
         return pos + len([i for i in unicode_indexes if i < pos])
     return func(index[0]), func(index[1])
+
+
+def append_lists(lsts):
+    ret = []
+    for l in lsts:
+        ret += l
+    return ret
+
+
+def shift_magic_index(magic_index, hl_indexes):
+    ret = []
+    for index in hl_indexes:
+        start = index[0]
+        end = index[1]
+        magic_start = magic_index[0]
+        magic_end = magic_index[1]
+        if start > magic_end or end < magic_start:
+            ret.append(index)
+        elif start < magic_start and end > magic_end:
+            # magic string inside
+            ret.append((start, magic_start))
+            ret.append((magic_end, end))
+        elif start > magic_start and end < magic_end:
+            pass
+        elif start >= magic_start and start <= magic_end:
+            ret.append((magic_end, end))
+        elif end >= magic_start and end <= magic_end:
+            ret.append((start, magic_end))
+        else:
+            # should not reach here
+            pass
+    return ret
+
+
+def shift_magic_indexes(magic_indexes, hl_indexes):
+    ret = hl_indexes
+    for index in magic_indexes:
+        ret = shift_magic_index(index, ret)
+    return ret
+
+
+def adjust_word_breaking(publisher_content, indexes):
+    """fine tune the indexes so that it does not split a word.
+
+    I'm including the word here. This should be removed when I use
+    --word-regexp option of agrep, but seems there are still such
+    cases.
     
+    A more powerful one is to analyze the sentence endding and if the
+    segment is around the ending, use the ending instead.
+    """
+    def adjust_one(content, index):
+        start = index[0]
+        end = index[1]
+        if (start > 0
+            and not content[start].isspace()
+            and content[start-1].isalnum()):
+            start = re.search(r'(\w+)$', content[:start]).start()
+        if end < len(publisher_content) and content[end].isalnum():
+            end += re.search(r'^(\w+)', content[end:]).end()
+        return (start, end)
+    return [adjust_one(publisher_content, index) for index in indexes]
+
 
 def generate(publisher_html, extract_html, output_file):
     # open files
@@ -317,9 +388,33 @@ def generate(publisher_html, extract_html, output_file):
     print('getting highlights ..')
     # need to use lxml, because html.parser is not good at
     # <hl>xxx</br>yyy</hl>, which will parse as <hl>xxx</hl>
-    soup = BeautifulSoup(open(extract_html).read(),
-                         'lxml')
+
+    
+    # Heuristics to remove table cells
+    magic_string = 'AUTOSCHOLARREMOVE'
+    extract_html_content = open(extract_html).read()
+    extract_html_content = re.sub(r'\n[0-9\.±+\-%() ]*</?br ?/?>',
+                                  magic_string,
+                                  extract_html_content)
+    extract_html_content = re.sub(r'\n\w*</?br/?>',
+                                  magic_string,
+                                  extract_html_content)
+    def remove_short_lines(s):
+        lines = s.split('\n')
+        def qualify(s):
+            return (len(s.split()) > 3 and len(s) > 30) or 'hl' in s
+        return '\n'.join([l if qualify(l) else magic_string for l in lines])
+    
+    extract_html_content = remove_short_lines(extract_html_content)
+
+    soup = BeautifulSoup(extract_html_content, 'lxml')
     hls = [hl.get_text() for hl in soup.find_all('hl')]
+    # split 'AUTOSCHOLARREMOVE'.  this will introduce many splits that
+    # is table cells, but not removed by heuristic. Thus we need to
+    # filter based on the length
+    hls = append_lists([hl.split(magic_string) for hl in hls])
+    # remove empty elements (\s*)
+    hls = list(filter(lambda s: len(s) > 30, hls))
 
     print('getting content ..')
     publisher_text = html2text(publisher_html)
@@ -327,13 +422,14 @@ def generate(publisher_html, extract_html, output_file):
     # Add a line break at the end of each paragraph
     publisher_text = [[x + "<br><br>" for x in y ] for y in publisher_text]
 
-    # FIXME add .?
     # use double newlines to separate
-    publisher_content = '\n\n'.join(publisher_text[0]
-                                    + publisher_text[1]
-                                    # FIXME table cells do not work
-#                                    + publisher_text[2]
-                                    )
+    magic_paragraph_separator = 'AUTOSCHOLAR_PARAGRAPH_SEPARATOR'
+    publisher_content = (('\n' + magic_paragraph_separator + '\n')
+                         .join(publisher_text[0]
+                               + publisher_text[1]
+                               # FIXME table cells do not work
+                               # + publisher_text[2]
+                         ))
 
     # collapse (white)space
     publisher_content = re.sub(r' +', ' ', publisher_content)
@@ -364,6 +460,15 @@ def generate(publisher_html, extract_html, output_file):
     # Now, insert the <hl> tags for the hl_indexes, into the
     # publisher_content
 
+    magic_string_indexes = [(m.start(), m.end())
+                            for m in re.finditer(magic_paragraph_separator,
+                                                 publisher_content)]
+
+    # shift magic indexes
+    hl_indexes = shift_magic_indexes(magic_string_indexes, hl_indexes)
+
+    hl_indexes = adjust_word_breaking(publisher_content, hl_indexes)
+
     output = '<html><meta charset="UTF-8"><head>'
     output += '<style> hl { background-color: yellow; } </style>'
     output += '</head>\n'
@@ -384,33 +489,27 @@ def generate(publisher_html, extract_html, output_file):
     # move <hl> into inner most, this seems to solve the out-of-order
     # problem for html tags
     output = reorder_hl(output)
+    # remove paragraph separator
+    output = re.sub(magic_paragraph_separator, '', output)
 
     print('writing output ..')
     with open(output_file, 'w') as f:
         f.write(output)
 
 def reorder_hl(s):
-    """Reorder <hl> and </hl> to move them as inside as possible among all
-    tags
-
-    FIXME <hl></hl>
-
-    >>> reorder_hl('<hl><p><span>hello</hl>')
-    '<p><span><hl>hello</hl>'
-    >>> reorder_hl('<hl></p>xx</span></hl>')
-    '</p><hl>xx</hl></span>'
-    >>> reorder_hl('<hl><x>cc</hl></x> <hl> <p class="SimplePara">Higher')
-    '<x><hl>cc</hl></x>  <p class="SimplePara"><hl>Higher'
-    >>> reorder_hl('<span class="CaptionNumber">Fig. 6<hl></span> <p class="SimplePara">Higher cell')
-    '<span class="CaptionNumber">Fig. 6</span> <p class="SimplePara"><hl>Higher cell'
-    >>> reorder_hl('<hl>  </hl>')
+    """Reorder <hl> and </hl> to move them as *outside* as possible among
+    all tags
     ''
+
+    Examples:
+    >>> reorder_hl('<span>ss</span><p><hl><span>hello</a></hl></b><c></d>')
+    '<span>ss</span><hl><p><span>hello</a></b></hl><c></d>'
     """
     # remove <hl></hl>
     s = re.sub(r'<hl>\s*</hl>', r'', s)
     # reorder
-    s = re.sub(r'(<hl>)((?:\s*<[^>]*>)*)', r'\2\1', s)
-    s = re.sub(r'((?:<[^>]*>\s*)*)(</hl>)', r'\2\1', s)
+    s = re.sub(r'((?:\s*<[^/>]*>)*)(<hl>)', r'\2\1', s)
+    s = re.sub(r'(</hl>)((?:</[^>]*>\s*)*)', r'\2\1', s)
     return s
 
 
