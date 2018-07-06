@@ -517,16 +517,13 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('publisher_html', help='publisher html')
     parser.add_argument('extract_html', help='extract html with <hl> from pdf')
-    parser.add_argument('output_csv', help='output csv file')
+    parser.add_argument('output_html', help='output html file')
     args = parser.parse_args()
-    generate(args.publisher_html, args.extract_html, args.output_csv)
+    generate(args.publisher_html, args.extract_html, args.output_html)
     
     
 if __name__ == '__test__':
     doctest.testmod()
-    generate('./html_output/42.html', '../test/html/42.html', './csv/42.csv')
-    generate('./html_output/51.html', '../test/html/51.html', './csv/51.csv')
-    generate('./html_output/79.html', '../test/html/79.html', './csv/79.csv')
 
     with timeout(seconds=3):
         try:
@@ -539,14 +536,14 @@ if __name__ == '__test__':
     
     publisher_dir = './html_output'
     extract_dir = '../test/html'
-    csv_dir = './csv'
+    csv_dir = './hl_html'
     for f in [f for f in os.listdir(publisher_dir) if f.endswith('.html')]:
         id = f.split('.')[0]
         print('------ ' + id)
         publisher_html = os.path.join(publisher_dir, id + '.html')
         extract_html = os.path.join(extract_dir, id + '.html')
-        csvfile = os.path.join(csv_dir, id + '.csv')
+        output_file = os.path.join(csv_dir, id + '.html')
         if not os.path.exists(extract_html):
             print('========', extract_html, 'does not exist')
         else:
-            generate(publisher_html, extract_html, csvfile)
+            generate(publisher_html, extract_html, output_file)
