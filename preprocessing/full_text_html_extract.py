@@ -183,7 +183,6 @@ def html2text_springer(html):
 #        strong.replace_with(new_tag) 
         strong.unwrap()
 
-
     # 1. Abstract 
     Abs_section = article.find("section", {"class":"Abstract"})
     # A list of strings
@@ -387,7 +386,11 @@ def html2text_wiley(html):
     paragraphs = []
  
     # 0. Clean up the HTML
-    decompose_list(article.findAll('span', {})) # Safe to do so 
+    decompose_list(article.findAll('span', {})) # Safe to do so for span with no attributes 
+    decompose_list(article.findAll('a')) # Safe to do so for all a's 
+
+#    decompose_list(article.findAll(lambda x: "bibLink" in x.get("class", [])))
+#    decompose_list(article.findAll(lambda x: "tableLink" in x.get("class", [])))
    
     # Get abstract 
     abstract_section = article.find("section",
@@ -562,39 +565,50 @@ def html2text_elsevier(html):
         cross_refs = text.find_all("a", {"class":"workspace-trigger"})
         table_figure_numbers = text.find_all("span", {"class":"label"})
 
-
-    soup = bs4.BeautifulSoup(html, 'html.parser')
-    # the part without title, abstract
-    body = soup.find('div', {'class':'Body'})
-    true_body = body.find('div')
-
     paragraphs = []
     captions = []
-    
+ 
+    soup = bs4.BeautifulSoup(html, 'html.parser')
+
+    # 0. Clean up the HTML
+    for i in soup.findAll(lambda x: "Learn more about" in x.get('title', ' ') and x.name=='a'):
+        i.unwrap()
+    decompose_list(soup.select('a.workspace-trigger') ) # all bibliographies
+    decompose_list(soup.findAll(lambda x: 'Download' in x.text and x.name=='a')) # e.g., "Downloda fullsize images "
+    decompose_list(soup.select('span[class="label"]')) # all figure and table numberings 
+
+
+    # 1.  Abstract 
     abstract = soup.find('div', {'class': 'Abstracts'})
     paragraphs += taglist2stringlist(abstract.find_all('p'))
 
 
-    # captions
+    # True/main body, the part without title, abstract
+    body = soup.find('div', {'class':'Body'})
+    true_body = body.find('div')
+   
+    # 2. captions
     table_ps = true_body.select('.tables p')
     figure_ps = true_body.select('.figure p')
     captions += taglist2stringlist(table_ps + figure_ps)
     decompose_list(table_ps)
     decompose_list(figure_ps)
     
+    # 3. regular paragraphs 
     paragraph_elements = true_body.find_all('p')
     # fix <p><p></p></p>
     paragraph_elements = list(filter(lambda x: x.parent.name != 'p',
                                      paragraph_elements))
     paragraphs += taglist2stringlist(paragraph_elements)
 
+    # 4. tables 
     tds = true_body.find_all('td')
     # strip attributes of all table cells 
     for td in tds:
         td.attrs = []
     table_cells = taglist2stringlist(tds)
 
-    # remove <span> in *string-level*
+    # 5. remove <span> in *string-level*
     paragraphs = remove_span_list(paragraphs)
     captions = remove_span_list(captions)
     table_cells = remove_span_list(table_cells)
