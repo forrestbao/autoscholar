@@ -121,6 +121,11 @@ def html2text_nature(html):
     # the part without title, abstract
     body = article.find('div', {"data-track-component":"article body"})
 
+
+    # 0. Clean up HTML
+    decompose_list(body.findAll(lambda x: x.name == 'sup' and x.a)) # get rid of bibiographical links first 
+    decompose_list(body.findAll('a')) # all remaining links, e.g. figures. 
+
     # Under body, a paper is segmented into <section>s, each of which
     # contain many <p> nodes
     sections = body.find_all("section")
@@ -240,18 +245,19 @@ def html2text_asm(html):
     """
     soup = bs4.BeautifulSoup(html, 'html.parser')
     body = soup.find("div",{"class":"article"}) # only one of such tag 
-    sections = body.findAll("div", {"class":"section"})
 
-    # Find the first appendix-type paragraph's id 
-    """
-    appendix_paras = []
-    for s in sections:
-        if "abstract" not in s["class"] and s["class"] != ["section"]:
-            appendix_paras += s.findAll("p")
-    pids = [p["id"] for p in appendix_paras]
-    pids = [int(re.search(r'p-([\d]+)', ID).group(1)) for ID in pids] 
-    first_appendix_pid = min(pids)
-    """
+    # 0. Clean up HTML
+    decompose_list(body.select('a[class="xref-bibr"]'))
+    decompose_list(body.select('a[class="xref-fig"]'))
+    decompose_list(body.select('a[class="xref-table"]'))
+    decompose_list(body.select('a[class="rev-xref"]'))
+
+    for i in body.select('span[class="inine-l2-header"]'):
+        i.unwrap()
+    for i in body.select('span[class="fn-label"]'):
+        i.unwrap()
+
+    sections = body.findAll("div", {"class":"section"})
 
     # Find all main sections 
     main_sections = [s for s in sections
@@ -266,21 +272,21 @@ def html2text_asm(html):
     captions = taglist2stringlist(caption_elements)
     decompose_list(caption_elements)
 
-    # main paragraphs
-    # main_paras = []
-    # for section in main_sections:
-    #     main_paras += section.findAll("p")
-    # pids = [p["id"] for p in main_paras]
-    # pids = [int(re.search(r'p-([\d]+)', ID).group(1)) for ID in pids] 
-    # first_main_pid = min(pids)
+    # Find the maximum ID of regular paragraphs 
+    main_paras = []
+    for section in main_sections:
+         main_paras += section.findAll("p")
+    pids = [p["id"] for p in main_paras]
+    pids = [int(re.search(r'p-([\d]+)', ID).group(1)) for ID in pids] 
+    max_pid = max(pids)
     
-    # Now append abstract paragraphs
-    # paras = main_paras
-    # for ID in range(1, first_main_pid):
-    #     paras.append(body.find("p", {"id":"p-"+str(ID)}))
-    # paras  = taglist2stringlist(paras)
-
-    paragraphs = taglist2stringlist(body.find_all('p'))
+    # Extract all regular paragraphs, including abstract 
+    paragraphs = [] 
+    for ID in range(1, max_pid+1):
+         the_p = body.find("p", {"id":"p-"+str(ID)})
+         if the_p: # if it's non-empty
+             paragraphs.append(the_p)
+    paragraphs = taglist2stringlist(paragraphs)
 
     return paragraphs, captions, ['']
 
@@ -461,6 +467,12 @@ def html2text_embo(html):
     soup = bs4.BeautifulSoup(html, 'html.parser')
     article = soup.find('div', {"class":"article"})
 
+    # 0. Clean up HTML
+    decompose_list(article.findAll("a"))
+    for i in article.select('span[class="sc"]'):
+        i.unwrap()
+
+
     paras = article.findAll("p")
     main_paras = [p for p in paras
                   if re.match(r'sec-\d+', p.parent.get("id", ""))]
@@ -499,6 +511,10 @@ def html2text_pubmed(html):
 
     soup = bs4.BeautifulSoup(html, 'html.parser')
     article = soup.find("div", {"class":"article"})
+
+    # 0. Clean up HTML
+    decompose_list(article.findAll(lambda x : x.name=='a' and 'bibr' in x.get("class", []))) # get rid of bibliography
+    decompose_list(article.findAll(lambda x : x.name=='a' and 'figpopup' in x.get("class", []))) # get rid of fig/table links
 
     # 1. get main paraphraphs, including Abstract
     paras = article.findAll("p")
