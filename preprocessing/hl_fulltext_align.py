@@ -80,7 +80,7 @@ def fuzzy_search_wrapper(string, pattern, max_dist=100):
         res.append((begin, end))
     # merge
     # print(res)
-    res = merge_sort_indexes(res, gap=20)
+    res = merge_sort_indexes(res, gap=100)
     # print(res)
     # print(pattern)
     # FIXME but I need to make sure they are actually continuous
@@ -164,7 +164,16 @@ def fuzzy_search(string, pattern, max_dist=120):
     # run agrep in shell
     cmd = ['tre-agrep', '-E', str(max_dist), '-d',
            'fjdsilfadsj', '--show-position',
+           # treat pattern as literal. This should increase
+           # performance
+           '--literal',
+           # only match whole word
+           '--word-regexp',
            '--show-cost',
+           '--delete-cost=1',
+           '--insert-cost=1',
+           # disable direct substitute
+           '--substitute-cost=3',
            pattern,
            fp.name]
     # print(' '.join(cmd))
@@ -222,7 +231,7 @@ def merge_sort_indexes(indexes, gap=5):
 
 
 def complete_indexes(indexes, upper):
-    """return the complete indexes, up to upper
+    """OBSOLETE return the complete indexes, up to upper
 
     Precondition: indexes are sorted after merge_sort_indexes
     
@@ -308,28 +317,120 @@ def recover_unicode(index, unicode_indexes):
     def func(pos):
         return pos + len([i for i in unicode_indexes if i < pos])
     return func(index[0]), func(index[1])
-    
 
-def generate(publisher_html, extract_html, csvfile):
-    # publisher_html = './html_output/67.html'
-    # extract_html = '../test/html/67.html'
+
+def append_lists(lsts):
+    ret = []
+    for l in lsts:
+        ret += l
+    return ret
+
+
+def shift_magic_index(magic_index, hl_indexes):
+    ret = []
+    for index in hl_indexes:
+        start = index[0]
+        end = index[1]
+        magic_start = magic_index[0]
+        magic_end = magic_index[1]
+        if start > magic_end or end < magic_start:
+            ret.append(index)
+        elif start < magic_start and end > magic_end:
+            # magic string inside
+            ret.append((start, magic_start))
+            ret.append((magic_end, end))
+        elif start > magic_start and end < magic_end:
+            pass
+        elif start >= magic_start and start <= magic_end:
+            ret.append((magic_end, end))
+        elif end >= magic_start and end <= magic_end:
+            ret.append((start, magic_end))
+        else:
+            # should not reach here
+            pass
+    return ret
+
+
+def shift_magic_indexes(magic_indexes, hl_indexes):
+    ret = hl_indexes
+    for index in magic_indexes:
+        ret = shift_magic_index(index, ret)
+    return ret
+
+
+def adjust_word_breaking(publisher_content, indexes):
+    """fine tune the indexes so that it does not split a word.
+
+    I'm including the word here. This should be removed when I use
+    --word-regexp option of agrep, but seems there are still such
+    cases.
+    
+    A more powerful one is to analyze the sentence endding and if the
+    segment is around the ending, use the ending instead.
+    """
+    def adjust_one(content, index):
+        start = index[0]
+        end = index[1]
+        if (start > 0
+            and not content[start].isspace()
+            and content[start-1].isalnum()):
+            start = re.search(r'(\w+)$', content[:start]).start()
+        if end < len(publisher_content) and content[end].isalnum():
+            end += re.search(r'^(\w+)', content[end:]).end()
+        return (start, end)
+    return [adjust_one(publisher_content, index) for index in indexes]
+
+
+def generate(publisher_html, extract_html, output_file):
     # open files
     # get all highlights
     # align highlights
     print('getting highlights ..')
     # need to use lxml, because html.parser is not good at
     # <hl>xxx</br>yyy</hl>, which will parse as <hl>xxx</hl>
-    soup = BeautifulSoup(open(extract_html).read(),
-                         'lxml')
+
+    
+    # Heuristics to remove table cells
+    magic_string = 'AUTOSCHOLARREMOVE'
+    extract_html_content = open(extract_html).read()
+    extract_html_content = re.sub(r'\n[0-9\.±+\-%() ]*</?br ?/?>',
+                                  magic_string,
+                                  extract_html_content)
+    extract_html_content = re.sub(r'\n\w*</?br/?>',
+                                  magic_string,
+                                  extract_html_content)
+    def remove_short_lines(s):
+        lines = s.split('\n')
+        def qualify(s):
+            return (len(s.split()) > 3 and len(s) > 30) or 'hl' in s
+        return '\n'.join([l if qualify(l) else magic_string for l in lines])
+    
+    extract_html_content = remove_short_lines(extract_html_content)
+
+    soup = BeautifulSoup(extract_html_content, 'lxml')
     hls = [hl.get_text() for hl in soup.find_all('hl')]
+    # split 'AUTOSCHOLARREMOVE'.  this will introduce many splits that
+    # is table cells, but not removed by heuristic. Thus we need to
+    # filter based on the length
+    hls = append_lists([hl.split(magic_string) for hl in hls])
+    # remove empty elements (\s*)
+    hls = list(filter(lambda s: len(s) > 30, hls))
 
     print('getting content ..')
     publisher_text = html2text(publisher_html)
-    # FIXME add .?
-    publisher_content = ''.join(publisher_text[0]
-                                + publisher_text[1]
-                                # FIXME table cells do not work
-                                + publisher_text[2])
+
+    # Add a line break at the end of each paragraph
+    publisher_text = [[x + "<br><br>" for x in y ] for y in publisher_text]
+
+    # use double newlines to separate
+    magic_paragraph_separator = 'AUTOSCHOLAR_PARAGRAPH_SEPARATOR'
+    publisher_content = (('\n' + magic_paragraph_separator + '\n')
+                         .join(publisher_text[0]
+                               + publisher_text[1]
+                               # FIXME table cells do not work
+                               # + publisher_text[2]
+                         ))
+
     # collapse (white)space
     publisher_content = re.sub(r' +', ' ', publisher_content)
 
@@ -355,49 +456,74 @@ def generate(publisher_html, extract_html, csvfile):
                                  indexes))
     # into two groups, highlight or not
     hl_indexes = merge_sort_indexes(recovered_indexes)
-    nonhl_indexes = complete_indexes(hl_indexes,
-                                     len(publisher_content))
-    # FIXME (0,0)
-    highlights = [publisher_content[index[0]:index[1]]
-                  for index in hl_indexes]
-    non_highlights = [publisher_content[index[0]:index[1]]
-                      for index in nonhl_indexes]
-    # print('highlights: ')
-    # print(hl_indexes)
-    # print('non_highlights:')
-    # print(nonhl_indexes)
-    
-    # for each group, do sentence separation by '.'
-    highlights = extend_lists([nltk.sent_tokenize(s) for s in highlights])
-    non_highlights = extend_lists([nltk.sent_tokenize(s)
-                                   for s in non_highlights])
-    # filter short sentences (OPTIONAL)
-    highlights = [hl for hl in highlights if len(hl) > 5]
-    non_highlights = [hl for hl in non_highlights if len(hl) > 5]
-    print('writing csv ..')
-    # write CSV
-    # should this be in order???
-    # now, it is out of order
-    with open(csvfile, 'w') as f:
-        writer = csv.writer(f)
-        # add label
-        writer.writerows([(0, hl) for hl in highlights])
-        writer.writerows([(1, hl) for hl in non_highlights])
+
+    # Now, insert the <hl> tags for the hl_indexes, into the
+    # publisher_content
+
+    magic_string_indexes = [(m.start(), m.end())
+                            for m in re.finditer(magic_paragraph_separator,
+                                                 publisher_content)]
+
+    # shift magic indexes
+    hl_indexes = shift_magic_indexes(magic_string_indexes, hl_indexes)
+
+    hl_indexes = adjust_word_breaking(publisher_content, hl_indexes)
+
+    output = '<html><meta charset="UTF-8"><head>'
+    output += '<style> hl { background-color: yellow; } </style>'
+    output += '</head>\n'
+    output += '<body>\n'
+    previous_index = 0
+    for index in hl_indexes:
+        output += publisher_content[previous_index:index[0]]
+        # NOTE: since adding <hl> does not consider the validity of
+        # html tags, the output can sometimes be
+        # <span>...<hl></span>..</hl>, which will not be shown in
+        # browser, and may not be shown using bs4
+        output += '<hl>'
+        output += publisher_content[index[0]:index[1]]
+        output += '</hl>'
+        previous_index = index[1]
+    output += publisher_content[previous_index:]
+    output += '</body></html>\n'
+    # move <hl> into inner most, this seems to solve the out-of-order
+    # problem for html tags
+    output = reorder_hl(output)
+    # remove paragraph separator
+    output = re.sub(magic_paragraph_separator, '', output)
+
+    print('writing output ..')
+    with open(output_file, 'w') as f:
+        f.write(output)
+
+def reorder_hl(s):
+    """Reorder <hl> and </hl> to move them as *outside* as possible among
+    all tags
+    ''
+
+    Examples:
+    >>> reorder_hl('<span>ss</span><p><hl><span>hello</a></hl></b><c></d>')
+    '<span>ss</span><hl><p><span>hello</a></b></hl><c></d>'
+    """
+    # remove <hl></hl>
+    s = re.sub(r'<hl>\s*</hl>', r'', s)
+    # reorder
+    s = re.sub(r'((?:\s*<[^/>]*>)*)(<hl>)', r'\2\1', s)
+    s = re.sub(r'(</hl>)((?:</[^>]*>\s*)*)', r'\2\1', s)
+    return s
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('publisher_html', help='publisher html')
     parser.add_argument('extract_html', help='extract html with <hl> from pdf')
-    parser.add_argument('output_csv', help='output csv file')
+    parser.add_argument('output_html', help='output html file')
     args = parser.parse_args()
-    generate(args.publisher_html, args.extract_html, args.output_csv)
+    generate(args.publisher_html, args.extract_html, args.output_html)
     
     
 if __name__ == '__test__':
     doctest.testmod()
-    generate('./html_output/42.html', '../test/html/42.html', './csv/42.csv')
-    generate('./html_output/51.html', '../test/html/51.html', './csv/51.csv')
-    generate('./html_output/79.html', '../test/html/79.html', './csv/79.csv')
 
     with timeout(seconds=3):
         try:
@@ -410,14 +536,14 @@ if __name__ == '__test__':
     
     publisher_dir = './html_output'
     extract_dir = '../test/html'
-    csv_dir = './csv'
+    csv_dir = './hl_html'
     for f in [f for f in os.listdir(publisher_dir) if f.endswith('.html')]:
         id = f.split('.')[0]
         print('------ ' + id)
         publisher_html = os.path.join(publisher_dir, id + '.html')
         extract_html = os.path.join(extract_dir, id + '.html')
-        csvfile = os.path.join(csv_dir, id + '.csv')
+        output_file = os.path.join(csv_dir, id + '.html')
         if not os.path.exists(extract_html):
             print('========', extract_html, 'does not exist')
         else:
-            generate(publisher_html, extract_html, csvfile)
+            generate(publisher_html, extract_html, output_file)

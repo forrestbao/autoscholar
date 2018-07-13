@@ -1,7 +1,7 @@
 # Extract text information of a paper from the publisher's website 
 # Copyleft 2018 Forrest Sheng Bao, Iowa State University
 # AGPL 3.0 
-import bs4, re
+import bs4, re, itertools
 import os
 
 def html2text(filename):
@@ -10,7 +10,16 @@ def html2text(filename):
     with open(filename, 'r') as f:
         html = f.read()
 
+    def exit_cleanup(a_str):
+        """Clean up each block of text from the paper
+        """
+        a_str = re.sub(' +',' ', a_str) # get rid of multiple white spaces
+        a_str = re.sub('-+','-', a_str) # get rid of multiple dashes
+        a_str = a_str.replace("\n", '') # get rid of line breaks
+        return a_str
+
     publisher = determine_publisher(html)
+    print ("This paper is by {}".format(publisher))
 
     if publisher == "elsevier":
         text = html2text_elsevier(html)
@@ -29,12 +38,12 @@ def html2text(filename):
     elif publisher == "pubmed":
         text = html2text_pubmed(html)
 
-
+    text = [list(map(exit_cleanup, t)) for t in text]
 
     return text
 
 def children2string(BS4Tag):
-    """Given a BS4 tag, concatenate all its children to into a string 
+    """Given a BS4 tag, concatenate all its children into a string 
     """
     return "".join(map(str, list(BS4Tag.children)))
 
@@ -103,7 +112,7 @@ def html2text_nature(html):
 
     Notes:
         Subscripts, superscripts, and italic tags are preserved 
-        <p> and <td> tags are preserved
+        <td> tags are preserved
 
     """
     soup = bs4.BeautifulSoup(html, 'html.parser')
@@ -111,6 +120,11 @@ def html2text_nature(html):
     article = soup.find('article')  # get article node
     # the part without title, abstract
     body = article.find('div', {"data-track-component":"article body"})
+
+
+    # 0. Clean up HTML
+    decompose_list(body.findAll(lambda x: x.name == 'sup' and x.a)) # get rid of bibiographical links first 
+    decompose_list(body.findAll('a')) # all remaining links, e.g. figures. 
 
     # Under body, a paper is segmented into <section>s, each of which
     # contain many <p> nodes
@@ -149,7 +163,7 @@ def html2text_springer(html):
 
     Notes:
         Subscripts, superscripts, and italic tags are preserved 
-        <p> and <td> tags are preserved
+        <td> tags are preserved
 
     """
 
@@ -160,6 +174,19 @@ def html2text_springer(html):
 
     main = soup.find("main")
     article = main.find("article")
+ 
+    # 0. Clean up the HTML.
+    decompose_list(main.find_all("span"))
+
+    for e in main.select("em"):
+        e.attrs={}
+        e.name= "i" 
+
+    for strong in soup.select('strong'):
+#        new_tag=soup.new_tag("b")
+#        new_tag.string=strong.string
+#        strong.replace_with(new_tag) 
+        strong.unwrap()
 
     # 1. Abstract 
     Abs_section = article.find("section", {"class":"Abstract"})
@@ -172,11 +199,16 @@ def html2text_springer(html):
     paragraphs += taglist2stringlist(p_para)
 
     # 3. Tables 
-    caption_elements = body.find_all("div", {"class":"CaptionContent"})
+    caption_paras = body.find_all("p", {"class":"SimplePara"})
+    caption_paras = [p for p in caption_paras if p.parent.name=="div" and "CaptionContent" in p.parent.get("class", [])]
+#    caption_elements = body.find_all("div", {"class":"CaptionContent"})
+#    caption_paras = [ e.findAll("p", {"class":"SimplePara"}) for e in caption_elements]
+
+
     Footers = body.find_all("div", {"class":"TableFooter"})
     # Get both <span> for table/figure number, and the
     # caption/footnote in <p class="SimplePara">
-    captions += taglist2stringlist(caption_elements)
+    captions += taglist2stringlist(caption_paras)
     captions += taglist2stringlist(Footers)
 
     # 4. Table contents
@@ -213,18 +245,19 @@ def html2text_asm(html):
     """
     soup = bs4.BeautifulSoup(html, 'html.parser')
     body = soup.find("div",{"class":"article"}) # only one of such tag 
-    sections = body.findAll("div", {"class":"section"})
 
-    # Find the first appendix-type paragraph's id 
-    """
-    appendix_paras = []
-    for s in sections:
-        if "abstract" not in s["class"] and s["class"] != ["section"]:
-            appendix_paras += s.findAll("p")
-    pids = [p["id"] for p in appendix_paras]
-    pids = [int(re.search(r'p-([\d]+)', ID).group(1)) for ID in pids] 
-    first_appendix_pid = min(pids)
-    """
+    # 0. Clean up HTML
+    decompose_list(body.select('a[class="xref-bibr"]'))
+    decompose_list(body.select('a[class="xref-fig"]'))
+    decompose_list(body.select('a[class="xref-table"]'))
+    decompose_list(body.select('a[class="rev-xref"]'))
+
+    for i in body.select('span[class="inine-l2-header"]'):
+        i.unwrap()
+    for i in body.select('span[class="fn-label"]'):
+        i.unwrap()
+
+    sections = body.findAll("div", {"class":"section"})
 
     # Find all main sections 
     main_sections = [s for s in sections
@@ -239,21 +272,21 @@ def html2text_asm(html):
     captions = taglist2stringlist(caption_elements)
     decompose_list(caption_elements)
 
-    # main paragraphs
-    # main_paras = []
-    # for section in main_sections:
-    #     main_paras += section.findAll("p")
-    # pids = [p["id"] for p in main_paras]
-    # pids = [int(re.search(r'p-([\d]+)', ID).group(1)) for ID in pids] 
-    # first_main_pid = min(pids)
+    # Find the maximum ID of regular paragraphs 
+    main_paras = []
+    for section in main_sections:
+         main_paras += section.findAll("p")
+    pids = [p["id"] for p in main_paras]
+    pids = [int(re.search(r'p-([\d]+)', ID).group(1)) for ID in pids] 
+    max_pid = max(pids)
     
-    # Now append abstract paragraphs
-    # paras = main_paras
-    # for ID in range(1, first_main_pid):
-    #     paras.append(body.find("p", {"id":"p-"+str(ID)}))
-    # paras  = taglist2stringlist(paras)
-
-    paragraphs = taglist2stringlist(body.find_all('p'))
+    # Extract all regular paragraphs, including abstract 
+    paragraphs = [] 
+    for ID in range(1, max_pid+1):
+         the_p = body.find("p", {"id":"p-"+str(ID)})
+         if the_p: # if it's non-empty
+             paragraphs.append(the_p)
+    paragraphs = taglist2stringlist(paragraphs)
 
     return paragraphs, captions, ['']
 
@@ -268,7 +301,7 @@ def html2text_bmc(html):
 
     Notes:
         Subscripts, superscripts, and italic tags are preserved 
-        <p> and <td> tags are preserved
+        <td> tags are preserved
 
     """
 
@@ -278,6 +311,22 @@ def html2text_bmc(html):
     soup = bs4.BeautifulSoup(html, 'html.parser')
 
     main = soup.find("main")
+
+    # 0. Clean up the HTML.
+    decompose_list(main.find_all("span"))
+
+    for e in main.select("em"):
+        e.attrs={}
+        e.name="i"
+
+    for e in main.select("sub"):
+        e.attrs={}
+
+    for strong in soup.select('strong'):
+#        new_tag=soup.new_tag("b")
+#        new_tag.string=strong.string
+#        strong.replace_with(new_tag) 
+        strong.unwrap()
 
     # 1. Paragraphs not right bbefore figures/tables
     # All paragraphs not before figures/tables 
@@ -297,7 +346,7 @@ def html2text_bmc(html):
     paragraphs += taglist2stringlist(Paras)
 
     # 2. Captions and footers of figures/tables 
-    captions_elements = main.find_all("div", {"class":"CaptionContent"})
+    captions_elements = main.select('  div[class="CaptionContent"] > p[class="SimplePara"] ')
     footers  = main.find_all("div", {"class":"TableFooter"})
 
     captions += taglist2stringlist(captions_elements)
@@ -323,23 +372,32 @@ def html2text_wiley(html):
         html (str): a string in HTML format
 
     Returns:
-        (list of str, list of str): text from paragraphs/captions, and text from table contents
+        list of lists of str: text from paragraphs, captions, and table cells
 
     Notes:
         Subscripts, superscripts, and italic tags are preserved 
-        <p> and <td> tags are preserved
+        <td> tags are preserved
 
-
-    Notes:
-        test on 296.html 
     """
+
+    def true_fig_cap(tag):
+        if tag.name == "div" and tag.get("class", []) == [] and tag.parent.name == "figcaption":
+            return True
+
     soup = bs4.BeautifulSoup(html, 'html.parser')
     article_body = soup.find("div", {"class":"article__body"})
     article = article_body.find("article")
 
     captions = []
     paragraphs = []
-    
+ 
+    # 0. Clean up the HTML
+    decompose_list(article.findAll('span', {})) # Safe to do so for span with no attributes 
+    decompose_list(article.findAll('a')) # Safe to do so for all a's 
+
+#    decompose_list(article.findAll(lambda x: "bibLink" in x.get("class", [])))
+#    decompose_list(article.findAll(lambda x: "tableLink" in x.get("class", [])))
+   
     # Get abstract 
     abstract_section = article.find("section",
                                     {"class":"article-section__abstract"})
@@ -354,18 +412,26 @@ def html2text_wiley(html):
 
     # Get table captions
     table_captions = full_section.select('header.article-table-caption')
-    table_footnotes = full_section.findAll("div", {"class":"article-section__table-footnotes"})
+#    for c in table_captions:
+#        c.span.decompose() # drop the part: <span>Table I</span>
+
+    table_footnotes = full_section.select("div.article-section__table-footnotes > ul > li")
+#    for f in table_footnotes:
+#        if f.span: 
+#            f.span.decompose() # drop the <span> that is for footnote numbering 
+
     captions += taglist2stringlist(table_captions)
     captions += taglist2stringlist(table_footnotes)
 
     # Get figure captions 
-    figure_captions = full_section.findAll("figcaption")
-    fig_cap_text = []
-    for fig_cap in figure_captions:
-        fig_cap_text += fig_cap.findAll("div", {"class":"accordion__content"})
+#    fig_cap_text = full_section.select("figcaption.figure__caption div")
+    fig_cap_text = full_section.findAll(true_fig_cap)
+    fig_cap_text = [div.p if div.p else div for div in fig_cap_text]
     captions += taglist2stringlist(fig_cap_text)
+
     # remove fig cap because so that normal paragraph will not get <p>
     # inside it
+    figure_captions = full_section.findAll("figcaption")
     decompose_list(figure_captions)
 
     # Get <td> s
@@ -394,10 +460,18 @@ def html2text_embo(html):
         1. Subscripts, superscripts, and italic tags are preserved 
         2. Unknown how tables are represented because example paper has no tables. 
 
+        Example paper: http://msb.embopress.org/content/3/1/149
+
     """
 
     soup = bs4.BeautifulSoup(html, 'html.parser')
     article = soup.find('div', {"class":"article"})
+
+    # 0. Clean up HTML
+    decompose_list(article.findAll("a"))
+    for i in article.select('span[class="sc"]'):
+        i.unwrap()
+
 
     paras = article.findAll("p")
     main_paras = [p for p in paras
@@ -428,6 +502,7 @@ def html2text_pubmed(html):
         Subscripts, superscripts, and italic tags are preserved 
         <p> and <td> tags are preserved
 
+    Example paper: http://www.pubmedcentral.nih.gov/articlerender.fcgi?artid=123913&tool=pmcentrez&rendertype=abstract 
 
     """
 
@@ -436,6 +511,10 @@ def html2text_pubmed(html):
 
     soup = bs4.BeautifulSoup(html, 'html.parser')
     article = soup.find("div", {"class":"article"})
+
+    # 0. Clean up HTML
+    decompose_list(article.findAll(lambda x : x.name=='a' and 'bibr' in x.get("class", []))) # get rid of bibliography
+    decompose_list(article.findAll(lambda x : x.name=='a' and 'figpopup' in x.get("class", []))) # get rid of fig/table links
 
     # 1. get main paraphraphs, including Abstract
     paras = article.findAll("p")
@@ -482,7 +561,10 @@ def html2text_elsevier(html):
 
     Notes:
         Subscripts, superscripts, and italic tags are preserved 
-        <p> and <td> tags are preserved 
+        <p> and <td> tags are preserved
+
+        Example paper: 
+
     """
 
     def remove_unwanted(text):
@@ -499,45 +581,74 @@ def html2text_elsevier(html):
         cross_refs = text.find_all("a", {"class":"workspace-trigger"})
         table_figure_numbers = text.find_all("span", {"class":"label"})
 
-
-    soup = bs4.BeautifulSoup(html, 'html.parser')
-    # the part without title, abstract
-    body = soup.find('div', {'class':'Body'})
-    true_body = body.find('div')
-
     paragraphs = []
     captions = []
-    
+ 
+    soup = bs4.BeautifulSoup(html, 'html.parser')
+
+    # 0. Clean up the HTML
+    for i in soup.findAll(lambda x: "Learn more about" in x.get('title', ' ') and x.name=='a'):
+        i.unwrap()
+    decompose_list(soup.select('a.workspace-trigger') ) # all bibliographies
+    decompose_list(soup.findAll(lambda x: 'Download' in x.text and x.name=='a')) # e.g., "Downloda fullsize images "
+    decompose_list(soup.select('span[class="label"]')) # all figure and table numberings 
+
+
+    # 1.  Abstract 
     abstract = soup.find('div', {'class': 'Abstracts'})
     paragraphs += taglist2stringlist(abstract.find_all('p'))
 
 
-    # captions
+    # True/main body, the part without title, abstract
+    body = soup.find('div', {'class':'Body'})
+    true_body = body.find('div')
+   
+    # 2. captions
     table_ps = true_body.select('.tables p')
     figure_ps = true_body.select('.figure p')
     captions += taglist2stringlist(table_ps + figure_ps)
     decompose_list(table_ps)
     decompose_list(figure_ps)
     
+    # 3. regular paragraphs 
     paragraph_elements = true_body.find_all('p')
     # fix <p><p></p></p>
     paragraph_elements = list(filter(lambda x: x.parent.name != 'p',
                                      paragraph_elements))
     paragraphs += taglist2stringlist(paragraph_elements)
 
+    # 4. tables 
     tds = true_body.find_all('td')
     # strip attributes of all table cells 
     for td in tds:
         td.attrs = []
     table_cells = taglist2stringlist(tds)
 
+    # 5. remove <span> in *string-level*
+    paragraphs = remove_span_list(paragraphs)
+    captions = remove_span_list(captions)
+    table_cells = remove_span_list(table_cells)
+
     return paragraphs, captions, table_cells
-           
+
+
+def remove_span(s):
+    """Remove <span ...> and </span>
+    >>> remove_span('<span class="hello"> world </span>')
+    ' world '
+    """
+    s = re.sub(r'<span[^>]*>', '', s)
+    s = re.sub(r'</span>', '', s)
+    return s
+
+def remove_span_list(lst):
+    return list(map(remove_span, lst))
+
 
 if __name__ == "__main__" :
     import sys
 
-    text = file2text(sys.argv[1])
+    text = html2text(sys.argv[1])
 
 
     
