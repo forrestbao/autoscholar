@@ -2,7 +2,7 @@
 
 This folder contains several scripts to prepare the data before machine learning stage:
 * `full_text_html_extract.py`: Extract full text of a paper from the webpage version of the paper on the publisher's website.  
-* `generate_labeled_data.py`: Generate the file for ML. Organize binary (highlighted or not) training samples into CSV format, by taking a full-text HTML file from the publisher ([downloaded via this script](../mendeley/paper_html_download)) and an HTML file containing manually annotated highlights extracted from PDF ([generated via this scrip](../mendeley/highlight_extract)). 
+* `hl_fulltext_align.py`: Transfer user highlights to full-text HTML, by taking a full-text HTML file from the publisher ([downloaded via this script](../mendeley/paper_html_download)) and an HTML file containing manually annotated highlights extracted from PDF ([generated via this scrip](../mendeley/highlight_extract)). 
 
 ## Dependencies
 * Python 3
