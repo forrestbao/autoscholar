@@ -69,7 +69,7 @@ def tag_subsitute(html, tag_sub={"i":"iiii", "sub":"2222", "sup":"PPPP"}):
 #        else:
 #            print (list(tag.children))
     
-    sub_string = " ".join([key*times for key, times in tag_counter.items()])
+    sub_string = " ".join([(" "+tag_sub[key]+" ")*times for key, times in tag_counter.items()])
 
     return str(soup) + " " + sub_string
 
