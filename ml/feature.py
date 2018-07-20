@@ -1,4 +1,7 @@
-import re, collections
+#!/usr/bin/python3
+
+
+import re, collections, math
 import stanfordcorenlp
 
 def build_samples(File, stanfordcorenlp_jar_location="/mnt/unsecure/Apps/stanford-corenlp-full-2018-02-27/", stopword_path="sci_stopwords.txt", unit_file="units.txt"):
@@ -15,7 +18,7 @@ def build_samples(File, stanfordcorenlp_jar_location="/mnt/unsecure/Apps/stanfor
     """
 
     nlp = stanfordcorenlp.StanfordCoreNLP(stanfordcorenlp_jar_location)
-    stopwords = load_stopwords(stopword_path)
+    stopwords = set(open(stopword_path, 'r').read().split())
     units = open(unit_file, 'r').read().split()
 
     line_count = 1 
@@ -35,7 +38,7 @@ def build_samples(File, stanfordcorenlp_jar_location="/mnt/unsecure/Apps/stanfor
     v, DF = voc_df_from_unigram_counts([Feature[1] for Feature in Features])
 
     # finalize features using length and total vocablary, e.g., tf-idf
-    
+    Features = feature_finalize(Features, v, DF) 
 
     return Labels, Features
 
@@ -54,6 +57,40 @@ def feature_per_line(Text, nlp_handler, stopwords, units):
 
     return (tag_features, unigram_counts, line_length, manual_features)
 
+def feature_finalize(Features, v, DF):
+    """From raw per line feature to final features
+
+    Args: 
+        Features: tuple, return from feature_per_line
+                  1st is tag_features converted from <i>, <sub> and <sup>
+                  2nd is unigram counts, collections.Couner
+                  3rd is length of the text 
+                  4th is manual features, dict 
+
+        v: dict, the frequencies of words in the corpus
+        DF: dict, the raw DF of all words in the corpus  
+    """
+
+    New_features = [] 
+
+    Doc_count = len(Features)
+    DF = dict(DF) # from collection.defaultdict to regular dict
+
+    # from direct document number to logarithmic IDF
+    IDF = {term:math.log(Doc_count/df) for term, df in DF.items() }
+    
+    for tag_feature, unigram_counts, length, manual_feature in Features:
+        TFIDF = [idf * unigram_counts[term] for term, idf in IDF.items()]
+        feature_per_line = TFIDF + \
+                           list(manual_feature.values()) + \
+                           list(tag_feature.values())
+
+        # normalize feature vector by sentence/doc length
+        feature_per_line = [x/length for x in feature_per_line ]
+
+        New_features.append(feature_per_line)
+    return New_features 
+
 def voc_df_from_unigram_counts(Dicts, low_freq_cutoff=5):
     """Get the frequencies of words and raw document frequencies in all documents from a list of word freq dict/Counters
 
@@ -65,7 +102,7 @@ def voc_df_from_unigram_counts(Dicts, low_freq_cutoff=5):
 
      Returns: 
         v: collections.Counter objects, the frequencies of words in all documents 
-        DF: dict, the raw document frequencies of all terms
+        DF: collections.defaultdict, the raw document frequencies of all terms
 
     Examples:
         >>> voc_df_from_unigram_counts([collections.Counter({"car":2, "mouse":3}), collections.Counter({"mouse":3, "wine":4})], 0)
@@ -201,6 +238,17 @@ def strip_special(Text):
 
 
 if __name__ == "__main__":
-    stanforecorenlp_jar_location = "/mnt/unsecure/Apps/stanford-corenlp-full-2018-02-27/"
+    import sys
+    stanfordcorenlp_jar_location = "/mnt/unsecure/Apps/stanford-corenlp-full-2018-02-27/"
+    stopword_path="sci_stopwords.txt"
+    unit_file="units.txt"
+
+    Labels, Features = build_samples(sys.argv[1], stanfordcorenlp_jar_location, stopword_path, unit_file)
+    
+    import pickle
+    pickle.dump( (Labels, Features), open(sys.argv[2], 'wb'))
+
+
+
 
 
