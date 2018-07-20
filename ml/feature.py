@@ -1,7 +1,7 @@
 import re, collections
 import stanfordcorenlp
 
-def build_samples(File, stanfordcorenlp_jar_location="/mnt/unsecure/Apps/stanford-corenlp-full-2018-02-27/", stopword_path="sci_stopwords.txt"):
+def build_samples(File, stanfordcorenlp_jar_location="/mnt/unsecure/Apps/stanford-corenlp-full-2018-02-27/", stopword_path="sci_stopwords.txt", unit_file="units.txt"):
     """Given a CSV file in our format, convert into two lists, the feature vectors and the labels. 
 
     Args:
@@ -16,6 +16,7 @@ def build_samples(File, stanfordcorenlp_jar_location="/mnt/unsecure/Apps/stanfor
 
     nlp = stanfordcorenlp.StanfordCoreNLP(stanfordcorenlp_jar_location)
     stopwords = load_stopwords(stopword_path)
+    units = open(unit_file, 'r').read().split()
 
     line_count = 1 
 
@@ -25,57 +26,90 @@ def build_samples(File, stanfordcorenlp_jar_location="/mnt/unsecure/Apps/stanfor
         for Line in f:
             if len(Line) > 5: 
                 Labels.append(int(Line[0]))
-                Features.append(feature_per_line(Line[1:], nlp, stopwords)) 
+                Features.append(feature_per_line(Line[1:], nlp, stopwords, units)) 
                 line_count += 1
                 print (line_count)
 
     nlp.close()
 
-    vocabulary = build_vocabulary([unigram_counts for (_, unigram_counts) in Features])
+    v, DF = voc_df_from_unigram_counts([Feature[1] for Feature in Features])
 
-    print (vocabulary)
+    # finalize features using length and total vocablary, e.g., tf-idf
+    
 
     return Labels, Features
 
-def feature_per_line(Text, nlp_handler, stopwords):
+def feature_per_line(Text, nlp_handler, stopwords, units):
     """Turn a string/sentence into a feature vector
     """
     
     Plain, tag_features = strip_special(Text) # <i>, <sup>, <sub> in a line 
     tokens = text_normalize(nlp_handler, Plain)
     tokens = remove_stopwords(tokens, stopwords)
-#    Plain, manual_features = features_engineering(Plain)
+
+    manual_features, tokens = feature_engineering(tokens, units) # collapse numbers and units 
+    line_length = len(tokens)
+
     unigram_counts = collections.Counter(tokens) # Counter type
 
-    return (tag_features, unigram_counts)
+    return (tag_features, unigram_counts, line_length, manual_features)
 
-def build_vocabulary(Dicts):
-    """Build the vocabulary from a list of word freq dict/Counters
+def voc_df_from_unigram_counts(Dicts, low_freq_cutoff=5):
+    """Get the frequencies of words and raw document frequencies in all documents from a list of word freq dict/Counters
+
+    Args:
+        Dicts: list of collections.Counter objects 
+               Each element is a unigram dict built of a text, sentence or paragraph
+        low_freq_coutoff: int
+                          Drop a term if its frequency is below this 
+
+     Returns: 
+        v: collections.Counter objects, the frequencies of words in all documents 
+        DF: dict, the raw document frequencies of all terms
+
+    Examples:
+        >>> voc_df_from_unigram_counts([collections.Counter({"car":2, "mouse":3}), collections.Counter({"mouse":3, "wine":4})], 0)
+        (Counter({'car': 2, 'mouse': 6, 'wine': 4}),
+         defaultdict(int, {'car': 1, 'mouse': 2, 'wine': 1}))
+
     """
-    v = set([])
+    v = collections.Counter()
+    DF = collections.defaultdict(int)  # the size of set {d\in D : t \in d}
 
     # 1. Get all words and their freqs. 
     for Dict in Dicts: 
-           v.update(set(Dict.keys())) 
+           v += Dict # append and add up the term frequencies
+           for t in Dict:
+               DF[t] += 1
 
-    # 2. Drop words of very low freqs 
+    # 2. Drop words of very low freqs in all docs 
+    for t in list(v):
+        if v[t] < low_freq_cutoff: 
+            print (t)
+            del v[t] 
+            del DF[t]
 
-    return v 
+    return v, DF 
 
-def feature_engineering(Text, collapose_feature=True):
-    """Use our own feature engineering to extract features, and replace some substrings 
+def feature_engineering(Tokens, Units):
+    """Collapse certain tokens to common dimensions, e.g., numbers and units
 
-    Args:
-        Text: str
-        collapose_feature: Boolean, whether we remove certain substrings that form our features. 
+    Example:
 
+    >>> feature_engineering(["I", "3.0","-5-5", "mg"], ["mg", "l"])
+    ({'number': 2, 'unit': 1}, ['I'])
     """
-    manual_features = {feature: 0 for feature in ["greek", "unit", "numbers"] } 
-    
-    
+    Collapse_dim= {"number":0, "unit":0}
+    Remain_tokens=[]
+    for t in Tokens:
+        if re.match(r'[\d.-]+', t):
+            Collapse_dim["number"] += 1
+        elif t in Units:
+            Collapse_dim["unit"] += 1
+        else:
+            Remain_tokens.append(t)
 
-    return Text, manual_features
-
+    return Collapse_dim, Remain_tokens
 
 def load_stopwords(Path):
     stopwords = set(open(Path, 'r').read().split())
@@ -118,7 +152,8 @@ def manual_tune_post(Tokens):
         Tokens: list of str
 
     """
-    unit_conversion={"Δ":"DELTA", "δ":"DELTA", "=":"EQUAL", "l":"LITER", "g":"GRAM", "mg":"MILLIGRAM", "μg":"MICROGRAM", "ml":"MILLILITER", "μg":"MICROLITER", "c":"CELSIUS"}
+#    unit_conversion={"Δ":"DELTA", "δ":"DELTA", "=":"EQUAL", "l":"LITER", "g":"GRAM", "mg":"MILLIGRAM", "μg":"MICROGRAM", "ml":"MILLILITER", "μg":"MICROLITER", "c":"CELSIUS"}
+    unit_conversion = {}
     return [unit_conversion.get(t, t) for t in Tokens]
 
 def text_normalize(nlp_handler, Text):
