@@ -246,7 +246,7 @@ if __name__ == "__main__":
     Labels, Features = build_samples(sys.argv[1], stanfordcorenlp_jar_location, stopword_path, unit_file)
     
     import pickle
-    pickle.dump( (Labels, Features), open(sys.argv[2], 'wb'))
+    pickle.dump( (Features, Labels), open(sys.argv[2], 'wb'))
 
 
 
