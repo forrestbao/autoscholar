@@ -1,3 +1,5 @@
+ #!/usr/bin/python3 -W ignore
+
 import sklearn
 from sklearn import preprocessing, grid_search, cross_validation
 from sklearn.svm import SVC
@@ -56,7 +58,7 @@ def grid_search_cv(training_data, model_gen, params, SCORINGS, CORE_NUM, FOLDS):
     for scoring in SCORINGS:
         clf = grid_search.GridSearchCV(model.model, params, scoring=scoring, n_jobs=CORE_NUM, cv=FOLDS)
         clf.fit(vectors, label)
-        print("{}\t{}\t{}\t{}".format(scoring, clf.best_score_, clf.best_params_))
+        print("{}\t{}\t{}".format(scoring, clf.best_score_, clf.best_params_))
 
 def grid_search_tasks(std_training_data):
     """One function to run grid search on different models
@@ -67,7 +69,7 @@ def grid_search_tasks(std_training_data):
     """
     import numpy
 #    knn_model_gen = RegressionModelFactory("KNeighborsRegressor", n_neighbors=10, weights="distance")
-    svr_model_gen = RegressionModelFactory("SVC")
+    svr_model_gen = RegressionModelFactory("SVC", class_weight='balanced')
 #    dtree_model_gen = RegressionModelFactory("DecisionTreeRegressor", random_state=0)
 
     KNN_PARAMS = {
@@ -79,7 +81,7 @@ def grid_search_tasks(std_training_data):
 
     SVR_PARAMS = {
         "C": 10.0 ** numpy.arange(-4,4),
-#        "epsilon": [0., 0.0001, 0.001, 0.01, 0.1],  # experience: epsilon>=0.1 is not good.
+#      "gamma": [0., 0.0001, 0.001, 0.01, 0.1],  # experience: epsilon>=0.1 is not good.
         "kernel": [
        "linear",
 #        "rbf",
@@ -88,7 +90,7 @@ def grid_search_tasks(std_training_data):
         # "precomputed"
         ],
 #        "degree": [5,], # because polynomial kernel sucks. Never use it.
-        "gamma": 10.0 ** numpy.arange(-4, 4),
+#        "gamma": 10.0 ** numpy.arange(-4, 4),
   }
 
     DTREE_PARAMS = {
@@ -100,7 +102,11 @@ def grid_search_tasks(std_training_data):
 #        "random_state": [0, 1, 10, 100],
     }
 
-    SCORINGS = ["mean_squared_error",
+    SCORINGS = ["neg_mean_squared_error",
+                "accuracy",
+                "precision",
+                "recall",
+                "f1_weighted"
 #                "mean_absolute_error"
     ]
 
