@@ -1,8 +1,6 @@
 # autoscholar
-A computer program that automatically ``reads'' scientific papers for you. 
-
-The project has several steps:
-1. Detect sentences that contain the type of information that the reader cares about. 
+A computer program that automatically ''reads'' scientific papers for you. By ''reading,'' we mean two tasks: 
+1. Detect sentences of a reader's interest -- based on sentences previously highlighted by the reader. 
 2. Extract facts (such as a numerical ouput of a system under a set of numerical inputs) from such sentences.
 
 We pick one scientific domain to start: microbial cell factory (e.g., fermenation of starch into ethanol using yeast) in the area of synthetic biology. We hope to automatically identify sentences about experimental conditions (inputs) and yields (outputs), then extract the numerical facts from them, and finally build a simulator that can predict the cell behavior. 
@@ -12,13 +10,14 @@ Step 1 is modeled as a binary classification problem in machine learning. First,
 The folders are organized as follows: 
 * [mendeley](mendeley): All scripts that involve the interaction with the Mendeley database. 
 * [preprocessing](preprocessing): Preprocessing data before ML. 
-* [ML]: Feature extraction and training of ML models. 
+* [ML](https://github.com/forrestbao/autoscholar/tree/html_extract) (under heavy development, not merged into master yet): Feature extraction and training of ML models. 
 
 ## Requirements
-* Python 3 (no Python 2! )
+* Python 3 (no Python 2)
 * Ubuntu Linux 18.04
-* NLTK and Stanford CoreNLP
+* NLTK and [our fork](https://github.com/forrestbao/stanford-corenlp) of Stanford CoreNLP Python wrapper. 
 * scikit-learn
+* Mendeley version 1.18 or earlier. 
 
 ## Known issues
 * The SQLite3 database file that holds highlights and full-text URLs has been encrypted since Mendeley v. 1.19 (circa. June 2018). We will soon drop the dependency on Mendeley by directly extracting highlights from PDF. 
