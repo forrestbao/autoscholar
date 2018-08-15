@@ -4,6 +4,16 @@
 import re, collections, math
 import stanfordcorenlp
 
+def lemma_func(nlp_handler, sentence):
+    r_dict = nlp_handler._request('lemma', sentence)
+    words = []
+    tags = []
+    for s in r_dict['sentences']:
+        for token in s['tokens']:
+            words.append(token['originalText'])
+            tags.append(token['lemma'])
+    return list(zip(words, tags))
+
 def build_samples(File, stanfordcorenlp_jar_location="/mnt/unsecure/Apps/stanford-corenlp-full-2018-02-27/", stopword_path="sci_stopwords.txt", unit_file="units.txt"):
     """Given a CSV file in our format, convert into two lists, the feature vectors and the labels. 
 
@@ -204,7 +214,8 @@ def text_normalize(nlp_handler, Text):
     """
     punctuations =set("`'?")
     Text = manual_tune_pre(Text)
-    lemmatization_result = nlp_handler.lemma(Text) # tokenization and lemmatization 
+    # lemmatization_result = nlp_handler.lemma(Text) # tokenization and lemmatization 
+    lemmatization_result = lemma_func(nlp_handler, Text)
     _, Tokens = zip(*lemmatization_result)
     Tokens = manual_tune_post(Tokens)
 
