@@ -4,7 +4,53 @@
 import bs4, re, itertools
 import os
 
-def html2text(filename):
+def remove_citation(string):
+    """Remove citation from string
+
+    >>> remove_citation('In an in vitro study by Joshi et al. (2005), linking a short')
+    >>> remove_citation('supplementation (Tehlivets et al., 2007). The FAS2 knockout')
+    >>> remove_citation('from E. coli, and a group II PPT, Sfp phosphopantetheinyl transferase from B. subtilis (Mootz et al., 2001; Nakano et al., 1992; White et al., 2005). Previously, rat ACP expressed in')
+    >>> remove_citation('closest structurally characterized enzyme to holo-ACP synthase from H. sapiens (Bunkoczi et al., 2007; Kealey et al., 1998; Lee et al., 2009). Both')
+    >>> remove_citation('although betaine was helpful (Underwood et al. ).')
+    >>> remove_citation('broth (Fig. 6). Minor')
+    >>> remove_citation('morphology (Fig. 3B).')
+    >>> remove_citation('morphology (Table. 3B).')
+    """
+    removed = []
+    year_reg = r'(?:19\d\d|20[0-1]\d)'
+    year_reg_paren = '\(?' + year_reg + '\)?'
+    author_reg = '[A-Z][a-z]+'
+    # Tehlivets et al., 2007
+    reg1 = author_reg + r' et al.,? ' + year_reg_paren
+    # Tehlivets and Mootz, 2007
+    reg2 = author_reg + r' and ' + author_reg + ',? ' + year_reg_paren
+    # Tehlivets (2007)
+    reg3 = author_reg + ' ' + year_reg_paren
+    # Tehlivets et al.
+    reg4 = author_reg + r' et al.'
+    
+    removed += re.findall(reg1, string)
+    string = re.sub(reg1, '', string)
+    removed += re.findall(reg2, string)
+    string = re.sub(reg2, '', string)
+    removed += re.findall(reg3, string)
+    string = re.sub(reg3, '', string)
+    removed += re.findall(reg4, string)
+    string = re.sub(reg4, '', string)
+
+    fig_reg = r'\([Ff]ig(?:ure)?\.? \w*\)'
+    table_reg = r'\([Tt]ab(?:le)?\.? \w*\)'
+    removed += re.findall(fig_reg, string)
+    string = re.sub(fig_reg, '', string)
+    removed += re.findall(table_reg, string)
+    string = re.sub(table_reg, '', string)
+
+    # print('-- removed:')
+    # if removed:
+    #     print(removed)
+    return string
+
+def html2text(filename, rm_cite=False):
     """open an HTML file and extract sentences from a paper. 
     """
     with open(filename, 'r') as f:
@@ -16,6 +62,8 @@ def html2text(filename):
         a_str = re.sub(' +',' ', a_str) # get rid of multiple white spaces
         a_str = re.sub('-+','-', a_str) # get rid of multiple dashes
         a_str = a_str.replace("\n", '') # get rid of line breaks
+        if rm_cite:
+            a_str = remove_citation(a_str)
         return a_str
 
     publisher = determine_publisher(html)
@@ -644,86 +692,17 @@ def remove_span(s):
 def remove_span_list(lst):
     return list(map(remove_span, lst))
 
+    
+
 
 if __name__ == "__main__" :
     import sys
-
-    text = html2text(sys.argv[1])
-
-
+    import argparse
     
-def test_export(dir, ids):
-    for i in ids:
-        filename = './html_output/' + str(i) + '.html'
-        with open(os.path.join(dir, str(i) + '.txt')
-                  , 'w') as f:
-            l1, l2, l3 = file2text(filename)
-            f.write('==============Paragraph('
-                    + str(len(l1))
-                    + ')================'
-                    + '\n\n\n\n\n')
-            for s in l1:
-                f.write(s)
-                f.write('\n\n\n\n')
+    parser = argparse.ArgumentParser()
 
-            f.write('\n\n\n\n\n\n\n'
-                    + '==============Captions('
-                    + str(len(l2))
-                    + ')================'
-                    '\n\n\n\n\n\n\n')
+    parser.add_argument('--remove-citation', help='Remove citations', action='store_true', default=False)
+    parser.add_argument('htmlfile', help='downloaded html file')
+    args = parser.parse_args()
 
-            for s in l2:
-                f.write(s)
-                f.write('\n\n\n\n')
-
-            f.write('\n\n\n\n\n\n\n'
-                    + '==============Tables('
-                    + str(len(l3))
-                    + ')================'
-                    '\n\n\n\n\n\n\n')
-            for s in l3:
-                f.write(s)
-                f.write('\n\n\n\n')
-
-                
-def rewrite_a(s):
-    # markup = '<a href="fdsfds" title="fkd" class="fdsfd">hell<em>world</em></a>'
-    # s = bs4.BeautifulSoup(markup, 'html.parser')
-    for a in s.find_all('a'):
-        a.wrap(s.new_tag('a'))
-        a.unwrap()
-        
-if __name__ == '__test__':
-    files = list(map(lambda x: os.path.join('./html_output', x),
-                     filter(lambda x: x.endswith('.html'),
-                            os.listdir('./html_output/'))))
-    for f in files:
-        print('------ ' + f)
-        l1, l2, l3 = file2text(f)
-        print(determine_publisher(open(f).read()))
-        print(len(l1))
-        print(len(l2))
-        print(len(l3))
-
-    file2text('./html_output/50.html')
-    determine_publisher(open('./html_output/68.html').read())
-
-    springer_ids = [71, 53, 44, 77, 58]
-    elsevier_ids = [66,50,54,68,80,76,45,
-                    72,51,69,63,47,60,59,75,48]
-    wiley_ids = [55,79,70,61,43,46]
-    asm_ids = [57,65,49,64]
-    nature_ids = [67,78,73,56,62]
-    embo_ids = [89,42]
-    bmc_ids = [74]
-    pubmed_ids = [52]
-
-    test_export('./test/springer', springer_ids)
-    test_export('./test/elsevier', elsevier_ids)
-    test_export('./test/wiley', wiley_ids)
-    test_export('./test/asm', asm_ids)
-    test_export('./test/nature', nature_ids)
-    test_export('./test', embo_ids)
-    test_export('./test', bmc_ids)
-    test_export('./test', pubmed_ids)
-
+    text = html2text(args.htmlfile, args.remove_citation)
