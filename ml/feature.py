@@ -145,14 +145,27 @@ def feature_engineering(Tokens, Units):
 
     >>> feature_engineering(["I", "3.0","-5-5", "mg"], ["mg", "l"])
     ({'number': 2, 'unit': 1}, ['I'])
+    >>> feature_engineering(["ab1-cd23-gf76", "ABC123", "CamelCaseWord", "Noncamel"], [])
+    ({'number': 0, 'unit': 0, 'A1-A1': 1, 'UPPER': 1, 'CamelCase': 1}, ['Noncamel'])
+    
     """
-    Collapse_dim= {"number":0, "unit":0}
+    Collapse_dim= {"number":0, "unit":0, "A1-A1": 0, "UPPER": 0, "CamelCase": 0}
     Remain_tokens=[]
+    # FIXME do we remove all these tokens?
     for t in Tokens:
         if re.match(r'[\d.-]+', t):
             Collapse_dim["number"] += 1
         elif t in Units:
             Collapse_dim["unit"] += 1
+        elif re.fullmatch('(\w+\d*-)+(\w+\d*)', t):
+            # \w+\d+-\w+\d+-... like A1-A1, or ab1-cd23-gf76
+            Collapse_dim["A1-A1"] += 1
+        elif re.fullmatch('[A-Z]+\d*', t):
+            # frequencies of all upper case words
+            Collapse_dim["UPPER"] += 1
+        elif re.fullmatch('([A-Z][a-z]+){2,}', t):
+            # camel style, like aNb
+            Collapse_dim["CamelCase"] += 1
         else:
             Remain_tokens.append(t)
 
