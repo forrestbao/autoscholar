@@ -147,6 +147,7 @@ def feature_engineering(Tokens, Units):
     ({'number': 2, 'unit': 1}, ['I'])
     >>> feature_engineering(["ab1-cd23-gf76", "ABC123", "CamelCaseWord", "Noncamel"], [])
     ({'number': 0, 'unit': 0, 'A1-A1': 1, 'UPPER': 1, 'CamelCase': 1}, ['Noncamel'])
+    >>> feature_engineering(["plasmids", "p416-Cyc-CAD", "and", "p416-Tef-CAD"], [])
     
     """
     Collapse_dim= {"number":0, "unit":0, "A1-A1": 0, "UPPER": 0, "CamelCase": 0}
@@ -157,7 +158,7 @@ def feature_engineering(Tokens, Units):
             Collapse_dim["number"] += 1
         elif t in Units:
             Collapse_dim["unit"] += 1
-        elif re.fullmatch('(\w+\d*-)+(\w+\d*)', t):
+        elif re.fullmatch('(\w+-)+(\w+)', t):
             # \w+\d+-\w+\d+-... like A1-A1, or ab1-cd23-gf76
             Collapse_dim["A1-A1"] += 1
         elif re.fullmatch('[A-Z]+\d*', t):
