@@ -1,0 +1,6 @@
+*.html
+*.tar.gz
+*.csv
+*.pickle
+
+__pycache__
