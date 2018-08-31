@@ -206,6 +206,34 @@ def manual_tune_pre(Text):
 
     return Text
 
+
+def treat_equation(text):
+    """Treat equations
+
+    >>> treat_equation("a=bcd")
+    "a = bcd"
+    >>> treat_equation("buffer (pH = 2.0) to acetonitrile")
+    >>> treat_equation('an initial OD600 = 6.0 increased')
+    >>> treat_equation('producing 0.27 ± 0.01 and 0.02 ± 0.01 g/g glc')
+    >>> treat_equation('estimated from the OD550 value (OD 1 = 333 mg cdw l−1)')
+    >>> treat_equation('Carbon distribution (%) = product-carbon moles/substrate-carbon moles × 100.')
+    >>> treat_equation('of GBDxSH3yPDZz where x = 1 and')
+    >>> treat_equation('replica plated on YPD+0.2 g l−1 G418, SD supplemented')
+    >>> treat_equation('the gene (from −73 to +1684) was amplified')
+    >>> treat_equation('was obtained from diploid HC16×HC30')
+    >>> treat_equation('filtering criteria (ratio > 1.5 or<−1.5, and p value <0.05), a total of 384 differentially')
+    >>> treat_equation('Values of yield are the mean±standard deviation from four independent experiments. nd=not determined.')
+    >>> treat_equation('The values are the mean±SD of three independent experiments. G6PD=glucose-6-P dehydrogenase; PGI=glucose-6-phosphate isomerase; GPD =glycerol-3-P dehydrogenase; GPP=glycerol-3-P phosphatase; GDH=NAD+ or NADP-dependent glycerol dehydrogenase; ADH=alcohol dehydrogenase; ALD=acetaldehyde dehydrogenase. nd=not determined; bd=below detection.')
+    >>> treat_equation('AC (adenylate charge)=(ATP+12 ADP)/AMP+ADP+ATP. nd: not determined.')
+    >>> treat_equation('the following order: ethanol>propanol>isopropanol>butanol>isobutanol.')
+    >>> treat_equation('titer of 37.16±0.43 mg/L (98% specificity) and')
+    >>> treat_equation('biological replicates±standard deviation (n=3) after 96 h')
+    >>> treat_equation('protein expressed by pTaFAR plasmid; TaFAR+ACC1')
+    >>> treat_equation('bootstrapping from ten replicates with sample size N = 2 × 103')
+    >>> treat_equation('production, taken as αrel = NFAEE, DSRS/NFAEE, const,')
+    >>> treat_equation('parameter inputs, x = [x1, x2, ..., xn], affect system outputs, y(x) = [y1(x), y2(x), ..., yn(x)], where y(x) corresponds')
+    """
+
 def manual_tune_post(Tokens):
     """Post-tokenization manual tune 
 
