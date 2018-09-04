@@ -20,6 +20,17 @@ The folders are organized as follows:
 * NLTK and Stanford CoreNLP
 * scikit-learn
 
+The following python modules are needed:
+- nltk
+- lxml
+- beautifulsoup4
+- stanfordcorenlp (https://github.com/Lynten/stanford-corenlp)
+- scikit-learn
+- numpy
+- scipy
+
+Download StanfordCorenlp jar file at https://stanfordnlp.github.io/CoreNLP/.
+
 ## Known issues
 * The SQLite3 database file that holds highlights and full-text URLs has been encrypted since Mendeley v. 1.19 (circa. June 2018). We will soon drop the dependency on Mendeley by directly extracting highlights from PDF. 
 
