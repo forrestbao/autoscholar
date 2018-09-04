@@ -23,7 +23,7 @@ import signal
 import time
 import argparse
 
-from full_text_html_extract import html2text
+from . full_text_html_extract import html2text
 
 def devide_string(string, num_interval):
     """Devide string into intervals
@@ -381,7 +381,7 @@ def adjust_word_breaking(publisher_content, indexes):
     return [adjust_one(publisher_content, index) for index in indexes]
 
 
-def generate(publisher_html, extract_html, output_file):
+def align(publisher_html, extract_html, output_file):
     # open files
     # get all highlights
     # align highlights
@@ -519,7 +519,7 @@ if __name__ == '__main__':
     parser.add_argument('extract_html', help='extract html with <hl> from pdf')
     parser.add_argument('output_html', help='output html file')
     args = parser.parse_args()
-    generate(args.publisher_html, args.extract_html, args.output_html)
+    align(args.publisher_html, args.extract_html, args.output_html)
     
     
 if __name__ == '__test__':
@@ -546,4 +546,4 @@ if __name__ == '__test__':
         if not os.path.exists(extract_html):
             print('========', extract_html, 'does not exist')
         else:
-            generate(publisher_html, extract_html, output_file)
+            align(publisher_html, extract_html, output_file)
