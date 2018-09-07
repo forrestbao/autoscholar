@@ -1,5 +1,34 @@
 #!/usr/bin/env python3
 
+"""This file tests the entire workflow, mainly for ease of debugging.
+
+There are several steps in the workflow of autoscholar:
+1. Html extraction from publishers' website (full_text_html_extract.py)
+2. Align htmls with highlights (hl_fulltext_align.py)
+3. Generate labeled data, preprocessing (gen_data.py)
+4. Feature engineering (feature.py)
+5. Model training (model.py)
+
+One way to run the suite of software is to invoke those scripts on
+Command Line. However, running scripts on CMD can be tedius,
+especially during debugging. It is more desired to run part or whole
+workflow interactively. This file represents such an alternative
+approach, unique in two ways:
+
+1. It wraps each of the steps in a function (e.g. do_align,
+do_gen_csv), thus running the step is just evaluating the function.
+
+2. It provides simple script (see '__workflow__' block) to run whole
+workflow, or re-run part of steps by executing any selected
+statements.
+
+To use it efficiently, you probably need to setup your python
+programming environment (via editor plugins or IDE) to be able to:
+1. start and talk to an active python process
+2. send selected code for evaluation
+
+"""
+
 from preprocessing.full_text_html_extract import *
 from preprocessing.hl_fulltext_align import *
 from preprocessing.gen_data import *
