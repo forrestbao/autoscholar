@@ -29,6 +29,9 @@ The following python modules are needed:
 - numpy
 - scipy
 
+For nltk, you need to download the following resources:
+- >>> nltk.download('punkt')
+
 Download StanfordCorenlp jar file at https://stanfordnlp.github.io/CoreNLP/.
 
 ## Known issues

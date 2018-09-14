@@ -4,51 +4,6 @@
 import bs4, re, itertools
 import os
 
-def remove_citation(string):
-    """Remove citation from string
-
-    >>> remove_citation('In an in vitro study by Joshi et al. (2005), linking a short')
-    >>> remove_citation('supplementation (Tehlivets et al., 2007). The FAS2 knockout')
-    >>> remove_citation('from E. coli, and a group II PPT, Sfp phosphopantetheinyl transferase from B. subtilis (Mootz et al., 2001; Nakano et al., 1992; White et al., 2005). Previously, rat ACP expressed in')
-    >>> remove_citation('closest structurally characterized enzyme to holo-ACP synthase from H. sapiens (Bunkoczi et al., 2007; Kealey et al., 1998; Lee et al., 2009). Both')
-    >>> remove_citation('although betaine was helpful (Underwood et al. ).')
-    >>> remove_citation('broth (Fig. 6). Minor')
-    >>> remove_citation('morphology (Fig. 3B).')
-    >>> remove_citation('morphology (Table. 3B).')
-    """
-    removed = []
-    year_reg = r'(?:19\d\d|20[0-1]\d)'
-    year_reg_paren = '\(?' + year_reg + '\)?'
-    author_reg = '[A-Z][a-z]+'
-    # Tehlivets et al., 2007
-    reg1 = author_reg + r' et al.,? ' + year_reg_paren
-    # Tehlivets and Mootz, 2007
-    reg2 = author_reg + r' and ' + author_reg + ',? ' + year_reg_paren
-    # Tehlivets (2007)
-    reg3 = author_reg + ' ' + year_reg_paren
-    # Tehlivets et al.
-    reg4 = author_reg + r' et al.'
-    
-    removed += re.findall(reg1, string)
-    string = re.sub(reg1, '', string)
-    removed += re.findall(reg2, string)
-    string = re.sub(reg2, '', string)
-    removed += re.findall(reg3, string)
-    string = re.sub(reg3, '', string)
-    removed += re.findall(reg4, string)
-    string = re.sub(reg4, '', string)
-
-    fig_reg = r'\([Ff]ig(?:ure)?\.? \w*\)'
-    table_reg = r'\([Tt]ab(?:le)?\.? \w*\)'
-    removed += re.findall(fig_reg, string)
-    string = re.sub(fig_reg, '', string)
-    removed += re.findall(table_reg, string)
-    string = re.sub(table_reg, '', string)
-
-    # print('-- removed:')
-    # if removed:
-    #     print(removed)
-    return string
 
 def html2text(filename, rm_cite=False):
     """open an HTML file and extract sentences from a paper. 
@@ -62,8 +17,6 @@ def html2text(filename, rm_cite=False):
         a_str = re.sub(' +',' ', a_str) # get rid of multiple white spaces
         a_str = re.sub('-+','-', a_str) # get rid of multiple dashes
         a_str = a_str.replace("\n", '') # get rid of line breaks
-        if rm_cite:
-            a_str = remove_citation(a_str)
         return a_str
 
     publisher = determine_publisher(html)
@@ -701,8 +654,7 @@ if __name__ == "__main__" :
     
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--remove-citation', help='Remove citations', action='store_true', default=False)
     parser.add_argument('htmlfile', help='downloaded html file')
     args = parser.parse_args()
 
-    text = html2text(args.htmlfile, args.remove_citation)
+    text = html2text(args.htmlfile)

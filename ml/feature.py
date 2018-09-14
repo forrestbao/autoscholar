@@ -3,6 +3,8 @@
 
 import re, collections, math
 import stanfordcorenlp
+from preprocessing.gen_data import calculate_special_feature_vector
+import csv
 
 def lemma_func(nlp_handler, sentence):
     r_dict = nlp_handler._request('lemma', sentence)
@@ -13,6 +15,47 @@ def lemma_func(nlp_handler, sentence):
             words.append(token['originalText'])
             tags.append(token['lemma'])
     return list(zip(words, tags))
+
+def build_samples_v2(File, stanfordcorenlp_jar_location, stopword_path, unit_file):
+    """Read real CSV file. Build features.
+    """
+    nlp = stanfordcorenlp.StanfordCoreNLP(stanfordcorenlp_jar_location)
+    stopwords = set(open(stopword_path, 'r').read().split())
+    units = open(unit_file, 'r').read().split()
+    rows = []
+    with open(File) as f:
+        rows = list(csv.reader(f))
+    all_labels = []
+    all_manual_features = []
+    all_unigram_counts = []
+    all_length = []
+    print('-- calculating features ..')
+    for row in rows:
+        line = row[1]
+        line, manual_features = calculate_special_feature_vector(line)
+        tokens = text_normalize(nlp, line)
+        tokens = remove_stopwords(tokens, stopwords)
+        # FIXME this line length should not be used in manual
+        # features, because it is calculated with those manual feature
+        # words removed
+        line_length = len(tokens)
+        # Avoid divide-by-0 errors. FIXME how many such cases?
+        if line_length == 0: continue
+        unigram_counts = collections.Counter(tokens) # Counter type
+        all_labels.append(int(row[0]))
+        all_manual_features.append(manual_features)
+        all_length.append(line_length)
+        all_unigram_counts.append(unigram_counts)
+    nlp.close()
+
+    print('-- tfidf ..')
+
+    all_TFIDF = tfidf(all_unigram_counts)
+    all_features = all_manual_features + all_TFIDF
+    print('-- normalizing ..')
+    normalized_all_features = [[x/length for x in feature]
+                               for feature, length in zip(all_features, all_length)]
+    return all_labels, normalized_all_features
 
 def build_samples(File, stanfordcorenlp_jar_location="/mnt/unsecure/Apps/stanford-corenlp-full-2018-02-27/", stopword_path="sci_stopwords.txt", unit_file="units.txt"):
     """Given a CSV file in our format, convert into two lists, the feature vectors and the labels. 
@@ -99,8 +142,21 @@ def feature_finalize(Features, v, DF):
         feature_per_line = [x/length for x in feature_per_line ]
 
         New_features.append(feature_per_line)
-    return New_features 
+    return New_features
 
+def tfidf(all_unigram_counts):
+    v, DF = voc_df_from_unigram_counts(all_unigram_counts)
+    Doc_count = len(all_unigram_counts)
+    DF = dict(DF) # from collection.defaultdict to regular dict
+    # from direct document number to logarithmic IDF
+    IDF = {term:math.log(Doc_count/df) for term, df in DF.items()}
+
+    all_TFIDF = []
+    for unigram_counts in all_unigram_counts:
+        TFIDF = [idf * unigram_counts[term] for term, idf in IDF.items()]
+        all_TFIDF.append(TFIDF)
+    return all_TFIDF
+ 
 def voc_df_from_unigram_counts(Dicts, low_freq_cutoff=5):
     """Get the frequencies of words and raw document frequencies in all documents from a list of word freq dict/Counters
 
@@ -206,33 +262,6 @@ def manual_tune_pre(Text):
 
     return Text
 
-
-def treat_equation(text):
-    """Treat equations
-
-    >>> treat_equation("a=bcd")
-    "a = bcd"
-    >>> treat_equation("buffer (pH = 2.0) to acetonitrile")
-    >>> treat_equation('an initial OD600 = 6.0 increased')
-    >>> treat_equation('producing 0.27 ± 0.01 and 0.02 ± 0.01 g/g glc')
-    >>> treat_equation('estimated from the OD550 value (OD 1 = 333 mg cdw l−1)')
-    >>> treat_equation('Carbon distribution (%) = product-carbon moles/substrate-carbon moles × 100.')
-    >>> treat_equation('of GBDxSH3yPDZz where x = 1 and')
-    >>> treat_equation('replica plated on YPD+0.2 g l−1 G418, SD supplemented')
-    >>> treat_equation('the gene (from −73 to +1684) was amplified')
-    >>> treat_equation('was obtained from diploid HC16×HC30')
-    >>> treat_equation('filtering criteria (ratio > 1.5 or<−1.5, and p value <0.05), a total of 384 differentially')
-    >>> treat_equation('Values of yield are the mean±standard deviation from four independent experiments. nd=not determined.')
-    >>> treat_equation('The values are the mean±SD of three independent experiments. G6PD=glucose-6-P dehydrogenase; PGI=glucose-6-phosphate isomerase; GPD =glycerol-3-P dehydrogenase; GPP=glycerol-3-P phosphatase; GDH=NAD+ or NADP-dependent glycerol dehydrogenase; ADH=alcohol dehydrogenase; ALD=acetaldehyde dehydrogenase. nd=not determined; bd=below detection.')
-    >>> treat_equation('AC (adenylate charge)=(ATP+12 ADP)/AMP+ADP+ATP. nd: not determined.')
-    >>> treat_equation('the following order: ethanol>propanol>isopropanol>butanol>isobutanol.')
-    >>> treat_equation('titer of 37.16±0.43 mg/L (98% specificity) and')
-    >>> treat_equation('biological replicates±standard deviation (n=3) after 96 h')
-    >>> treat_equation('protein expressed by pTaFAR plasmid; TaFAR+ACC1')
-    >>> treat_equation('bootstrapping from ten replicates with sample size N = 2 × 103')
-    >>> treat_equation('production, taken as αrel = NFAEE, DSRS/NFAEE, const,')
-    >>> treat_equation('parameter inputs, x = [x1, x2, ..., xn], affect system outputs, y(x) = [y1(x), y2(x), ..., yn(x)], where y(x) corresponds')
-    """
 
 def manual_tune_post(Tokens):
     """Post-tokenization manual tune 

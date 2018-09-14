@@ -168,26 +168,6 @@ if __name__ == '__test__':
     for key in detail.keys():
         print(key)
         print(Counter(detail[key][3]).most_common()[:])
-
-    # springer_ids = [71, 53, 44, 77, 58]
-    # elsevier_ids = [66,50,54,68,80,76,45,
-    #                 72,51,69,63,47,60,59,75,48]
-    # wiley_ids = [55,79,70,61,43,46]
-    # asm_ids = [57,65,49,64]
-    # nature_ids = [67,78,73,56,62]
-    # embo_ids = [89,42]
-    # bmc_ids = [74]
-    # pubmed_ids = [52]
-
-    # test_export('./test/springer', springer_ids)
-    # test_export('./test/elsevier', elsevier_ids)
-    # test_export('./test/wiley', wiley_ids)
-    # test_export('./test/asm', asm_ids)
-    # test_export('./test/nature', nature_ids)
-    # test_export('./test', embo_ids)
-    # test_export('./test', bmc_ids)
-    # test_export('./test', pubmed_ids)
-
     
 def do_align(publisher_dir, extract_dir, align_dir):
     if not os.path.exists(align_dir):
@@ -213,6 +193,27 @@ def do_gen_csv(align_dir, csv_dir):
         _ = hl_html_to_csv(html_filename, csv_filename)
     
 
+def concat(csv_dir, csv_file):
+    content = ''
+    for f in os.listdir(csv_dir):
+        with open(os.path.join(csv_dir, f)) as fo:
+            content += fo.read()
+    with open(csv_file, 'w') as f:
+        f.write(content)
+
+def sample(in_file, out_file, percentage=0.1):
+    import random
+    random.seed(0)
+    lines = []
+    with open(in_file) as f:
+        lines = f.readlines()
+    num_lines = len(lines)
+    line_numbers = random.sample(range(0, num_lines), int(num_lines * percentage))
+    selected_lines = [lines[i] for i in sorted(line_numbers)]
+    with open(out_file, 'w') as f:
+        f.writelines(selected_lines)
+    
+        
 if __name__ == '__workflow__':
     publisher_dir = './data/download_html'
     extract_dir = './data/extract_html'
@@ -226,17 +227,25 @@ if __name__ == '__workflow__':
     csv_dir = "./output/csv"
     do_gen_csv(align_dir, csv_dir)
 
+    ## concat csv into one
+    csv_file = 'output/all.csv'
+    concat(csv_dir, csv_file)
+    # sample part of it
+    part_csv_file = 'output/part.csv'
+    sample(csv_file, part_csv_file, 0.1)
+    csv_final = 'output/final.csv'
+    # transform this further
+    further_transform(part_csv_file, csv_final)
+
     ## generate feature
     stanfordcorenlp_jar = "/home/hebi/tmp/stanford-corenlp-full-2018-02-27/"
     stopword_path="./ml/sci_stopwords.txt"
     unit_file="./ml/units.txt"
 
-    # csv_file = 'output/all.csv'
-    csv_file = 'output/part.csv'
+    labels, features = build_samples_v2(csv_file, stanfordcorenlp_jar,
+                                        stopword_path, unit_file)
 
-    Labels, Features = build_samples(csv_file, stanfordcorenlp_jar,
-                                     stopword_path, unit_file)
-    pickle.dump( (Features, Labels), open('output/feature.pickle', 'wb'))
+    pickle.dump( (features, labels), open('output/feature.pickle', 'wb'))
 
     ## training
 
@@ -248,7 +257,7 @@ if __name__ == '__workflow__':
     warnings.filterwarnings("ignore", message='',
                             category=UndefinedMetricWarning,
                             module='', lineno=0, append=False)
-    warnings.resetwarnings()
+    # warnings.resetwarnings()
     
     training_data = pickle.load(open("output/feature.pickle",'rb'))
     cv_run(training_data)
