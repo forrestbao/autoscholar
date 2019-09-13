@@ -46,7 +46,7 @@ python rescue.py --path /path/to/bin/mendeleydesktop --database <some_id>@www.me
 ## Verification
 If the script outputs a successful message, the database should be readable using sqlite3. To verify the database, run:
 ```
-$ sqlite3 `<some_id>@www.mendeley.com.sqlite`
+$ sqlite3 <some_id>@www.mendeley.com.sqlite
 SQLite version 3.29.0 2019-07-10 17:32:03
 Enter ".help" for usage hints.
 sqlite> .tables
