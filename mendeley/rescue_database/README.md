@@ -73,7 +73,7 @@ cp <some_id>@www.mendeley.com.sqlite.bak <some_id>@www.mendeley.com.sqlite
 ```
 
 ## Issues
-Due to the threading behavior or spurious opening of the database, the script does not always work, you can try to increase the numbers of attempts by add `-t` argument to specify the times of attempts. For example:
+Due to the threading behavior or spurious opening of the database, the script does not always work, you can try to increase the number of attempts by add `-t` argument to specify the times of attempts. For example:
 ```
 python rescue.py --path /path/to/bin/mendeleydesktop --database <some_id>@www.mendeley.com.sqlite -t 4
 ```
