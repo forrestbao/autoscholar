@@ -1,5 +1,5 @@
 # Rescue the data from the encrypted Mendeley Database
-## Acknowledgment
+## Note
 The script was built based on the link: https://eighty-twenty.org/2018/06/13/mendeley-encrypted-db . Use at your own risk.
 ## Requirements
 * Python 3
