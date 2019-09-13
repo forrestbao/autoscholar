@@ -36,7 +36,7 @@ def attempt(times, debug=0):
             if db in response[0]['payload']:
                 if debug:
                     print(response, file=sys.stderr)
-                break;
+                break
             
             gdb.write('c', read_response=False)
             validWithKeyword(gdb, 'sqlite3_open_v2', 5, debug=debug)
