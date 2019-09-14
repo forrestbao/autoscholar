@@ -32,9 +32,9 @@ optional arguments:
                         folder is default.
   --debug               Display debug information.
 ```
-To run the script, the path to the `mendeleydesktop` and the filename of the database is required. The database is a `<some_id>@www.mendeley.com.sqlite` file usually located at :
+To run the script, the path to the `mendeleydesktop` and the path to database is required. The database file is usually located at :
 ```
-~/.local/share/data/Mendeley Ltd./Mendeley Desktop/
+~/.local/share/data/Mendeley Ltd./Mendeley Desktop/<some_id>@www.mendeley.com.sqlite
 ```
 The script will backup your database file first to prevent potential data loss.
 
