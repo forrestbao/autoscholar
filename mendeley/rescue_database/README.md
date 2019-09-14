@@ -15,32 +15,32 @@ pip install pygdbmi
 Help options:
 ```
 usage: rescue.py [-h] --path PATH --database DATABASE [--attempts ATTEMPTS]
-                 [--debug]
+                 [--save SAVE] [--debug]
 
 Rescue the data from the envrypted mendeley database.
 
 optional arguments:
   -h, --help            show this help message and exit
-  --path PATH, -p PATH  The mendeleydesktop file path
+  --path PATH, -p PATH  The mendeleydesktop file path.
   --database DATABASE, -db DATABASE
-                        The file name of your encrypted database.
+                        The encrypted database file path.
   --attempts ATTEMPTS, -t ATTEMPTS
                         The time of attempt, 2 times is default. Multiple
                         attempts needed due to the thread interleaving or
                         spurious opening of the database.
+  --save SAVE, -s SAVE  Path to save the rescued database, current working
+                        folder is default.
   --debug               Display debug information.
 ```
 To run the script, the path to the `mendeleydesktop` and the filename of the database is required. The database is a `<some_id>@www.mendeley.com.sqlite` file usually located at :
 ```
 ~/.local/share/data/Mendeley Ltd./Mendeley Desktop/
 ```
-Before you run the script, backup the database file is highly recommended to prevent the data loss.
-```
-cp <some_id>@www.mendeley.com.sqlite <some_id>@www.mendeley.com.sqlite.bak
-```
+The script will backup your database file first to prevent potential data loss.
+
 A typical run of the script looks like this:
 ```
-python rescue.py --path /path/to/bin/mendeleydesktop --database <some_id>@www.mendeley.com.sqlite
+python rescue.py --path /path/to/bin/mendeleydesktop --database ~/.local/share/data/"Mendeley Ltd."/"Mendeley Desktop"/<some_id>@www.mendeley.com.sqlite
 ```
 
 ## Verification
@@ -67,10 +67,7 @@ DocumentUrls             ImportHistory            ZoteroLastSync
 DocumentVersion          LastReadStates         
 sqlite> .quit
 ```
-If you see the message above, it means you succeeded in rescuing your data. You can do anything to the database now. But if you wish to continue using the Mendeley, you will have to recover the database from the backup file.
-```
-cp <some_id>@www.mendeley.com.sqlite.bak <some_id>@www.mendeley.com.sqlite
-```
+If you see the message above, it means you succeeded in rescuing your data. You can do anything to the database now. 
 
 ## Issues
 Due to the threading behavior or spurious opening of the database, the script does not always work, you can try to increase the number of attempts by add `-t` argument to specify the times of attempts. For example:
