@@ -1,8 +1,7 @@
 from pygdbmi.gdbcontroller import GdbController
 import sys
-
-mendeley = ''
-db = ''
+import argparse
+import os
 
 class ValidException(Exception):
     pass
@@ -20,7 +19,7 @@ def validWithKeyword(gdb, keyword, timeout_sec=1, debug=0):
 def getResult(response):
     return response[response.find('=')+2:]
 
-def attempt(times, debug=0):
+def attempt(times, mendeley, db, debug=0):
     gdb = GdbController(mendeley, ['--debug'])
     
     try:
@@ -80,61 +79,58 @@ def attempt(times, debug=0):
         gdb.exit()
     return True
 
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+            description="Rescue the data from the envrypted mendeley database.")
+    parser.add_argument('--path', '-p', required=True,
+                        help="The mendeleydesktop file path.")
+    parser.add_argument('--database', '-db', required=True,
+                        help="The encrypted database file path.")
+    parser.add_argument('--attempts', '-t', default=2, type=int,
+                        help="The time of attempt, 2 times is default. Multiple attempts needed \
+                        due to the thread interleaving or spurious opening of the database.")
+    parser.add_argument('--save', '-s', default='.',
+                        help="Path to save the rescued database, current working folder is default.")
+    parser.add_argument('--debug', action="store_true",
+                        help="Display debug information.")
+    args = parser.parse_args()
 
-import argparse
-import os
+    mendeley = os.path.realpath(args.path)
+    if not os.path.exists(mendeley):
+        print('%s not found.' % args.path)
+        sys.exit(1)
 
-parser = argparse.ArgumentParser(
-        description="Rescue the data from the envrypted mendeley database.")
-parser.add_argument('--path', '-p', required=True,
-                    help="The mendeleydesktop file path.")
-parser.add_argument('--database', '-db', required=True,
-                    help="The encrypted database file path.")
-parser.add_argument('--attempts', '-t', default=2, type=int,
-                    help="The time of attempt, 2 times is default. Multiple attempts needed \
-                    due to the thread interleaving or spurious opening of the database.")
-parser.add_argument('--save', '-s', default='.',
-                    help="Path to save the rescued database, current working folder is default.")
-parser.add_argument('--debug', action="store_true",
-                    help="Display debug information.")
-args = parser.parse_args()
+    db = os.path.realpath(args.database)
+    if not os.path.exists(db):
+        print('%s not found.' % args.database)
+        sys.exit(2)
 
-mendeley = os.path.realpath(args.path)
-if not os.path.exists(mendeley):
-    print('%s not found.' % args.path)
-    sys.exit(1)
+    # Backup the database
+    if os.system('cp -p "%s" "%s.bak"' % (db, db)):
+        print('Unable to backup the database, please check the permission.')
+        sys.exit(3)
 
-db = os.path.realpath(args.database)
-if not os.path.exists(db):
-    print('%s not found.' % args.database)
-    sys.exit(2)
+    fail = True
+    for i in range(1, args.attempts+1):
+        print('%d attempt' % i)
+        if attempt(i, mendeley, db, args.debug):
+            print('Succeeded!')
+            fail = False
+            break
 
-# Backup the database
-if os.system('cp "%s" "%s.bak"' % (db, db)):
-    print('Unable to backup the database, please check the permission.')
-    sys.exit(3)
+    if not fail:
+        if os.system('cp -p "%s" "%s"' % (db, args.save)):
+            print('Unable to copy the file, you may have to copy the file and restore the database manually.')
+            sys.exit(4)
 
-fail = True
-for i in range(1, args.attempts+1):
-    print('%d attempt' % i)
-    if attempt(i, args.debug):
-        print('Succeeded!')
-        fail = False
-        break
+    # Restore the database
+    if os.system('cp -p "%s.bak" "%s"' % (db, db)):
+        print('Unable to restore the database, you may have to restore the file manually.')
+        sys.exit(5)
 
-if not fail:
-    if os.system('cp "%s" "%s"' % (db, args.save)):
-        print('Unable to copy the file, you may have to copy the file and restore the database manually.')
-        sys.exit(4)
+    # Delete the backup
+    if os.system('rm "%s.bak"' % db):
+        print('Unable to delete the backup, you may have to delete the file manually.')
+        sys.exit(6)
 
-# Restore the database
-if os.system('cp "%s.bak" "%s"' % (db, db)):
-    print('Unable to restore the database, you may have to restore the file manually.')
-    sys.exit(5)
-
-# Delete the backup
-if os.system('rm "%s.bak"' % db):
-    print('Unable to delete the backup, you may have to delete the file manually.')
-    sys.exit(6)
-
-sys.exit(-1 if fail else 0)
+    sys.exit(-1 if fail else 0)
