@@ -28,15 +28,15 @@ optional arguments:
                         The time of attempt, 2 times is default. Multiple
                         attempts needed due to the thread interleaving or
                         spurious opening of the database.
-  --save SAVE, -s SAVE  Path to save the rescued database, current working
-                        folder is default.
+  --save SAVE, -s SAVE  The filename to save the rescued database, save.sqlite
+                        is default.
   --debug               Display debug information.
 ```
 To run the script, the path to the `mendeleydesktop` and the path to database is required. The database file is usually located at :
 ```
 ~/.local/share/data/Mendeley Ltd./Mendeley Desktop/<some_id>@www.mendeley.com.sqlite
 ```
-The script will backup your database file first to prevent potential data loss.
+The script will create a copy of your database file and work on the copy.
 
 A typical run of the script looks like this:
 ```
@@ -44,9 +44,9 @@ python rescue.py --path /path/to/bin/mendeleydesktop --database ~/.local/share/d
 ```
 
 ## Verification
-If the script outputs a successful message, the database should be readable using sqlite3. To verify the database, run:
+If the script outputs a successful message, the generated database should be readable using sqlite3. To verify the database, run:
 ```
-$ sqlite3 <some_id>@www.mendeley.com.sqlite
+$ sqlite3 save.sqlite
 SQLite version 3.29.0 2019-07-10 17:32:03
 Enter ".help" for usage hints.
 sqlite> .tables

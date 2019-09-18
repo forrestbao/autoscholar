@@ -2,6 +2,7 @@ from pygdbmi.gdbcontroller import GdbController
 import sys
 import argparse
 import os
+import traceback
 
 class ValidException(Exception):
     pass
@@ -19,9 +20,20 @@ def validWithKeyword(gdb, keyword, timeout_sec=1, debug=0):
 def getResult(response):
     return response[response.find('=')+2:]
 
-def attempt(times, mendeley, db, debug=0):
+def setPath(gdb, path, var_count):
+    length = len(path)+1
+    count = var_count+1
+    gdb.write('p malloc(%d)' % length)
+    gdb.write('set {char [%d]} $%d = "%s"' % (length, count, path), read_response=False)
+    gdb.write('set $rdi = $%d' % count, read_response=False)
+    response = gdb.write('x/s $rdi')
+    if path not in response[0]['payload']:
+        raise ValidException('Unable to set database file.')
+    return count
+
+def attempt(times, mendeley, db, save_path, debug=0):
     gdb = GdbController(mendeley, ['--debug'])
-    
+    var_count = 0
     try:
         gdb.write('b sqlite3_open_v2', read_response=False)
         validWithKeyword(gdb, 'Breakpoint', debug=debug)
@@ -40,12 +52,14 @@ def attempt(times, mendeley, db, debug=0):
             gdb.write('c', read_response=False)
             validWithKeyword(gdb, 'sqlite3_open_v2', 5, debug=debug)
         
+        var_count = setPath(gdb, save_path, var_count)
         for i in range(1, times):
             gdb.write('c', read_response=False)
             validWithKeyword(gdb, 'sqlite3_open_v2', 5, debug=debug)
             response = gdb.write('x/s $rdi')
             if db not in response[0]['payload']:
                 raise ValidException('Attemp failed')
+            var_count = setPath(gdb, save_path, var_count)
          
         gdb.write('b sqlite3_key', read_response=False)
         validWithKeyword(gdb, 'Breakpoint', debug=debug)
@@ -72,8 +86,8 @@ def attempt(times, mendeley, db, debug=0):
     except ValidException as e:
         print(e)
         return False
-    except Exception as e:
-        print(e)
+    except Exception:
+        traceback.print_exc()
         return False
     finally:
         gdb.exit()
@@ -89,8 +103,8 @@ if __name__ == "__main__":
     parser.add_argument('--attempts', '-t', default=2, type=int,
                         help="The time of attempt, 2 times is default. Multiple attempts needed \
                         due to the thread interleaving or spurious opening of the database.")
-    parser.add_argument('--save', '-s', default='.',
-                        help="Path to save the rescued database, current working folder is default.")
+    parser.add_argument('--save', '-s', default='save.sqlite',
+                        help="The filename to save the rescued database, save.sqlite is default.")
     parser.add_argument('--debug', action="store_true",
                         help="Display debug information.")
     args = parser.parse_args()
@@ -104,33 +118,18 @@ if __name__ == "__main__":
     if not os.path.exists(db):
         print('%s not found.' % args.database)
         sys.exit(2)
-
-    # Backup the database
-    if os.system('cp -p "%s" "%s.bak"' % (db, db)):
-        print('Unable to backup the database, please check the permission.')
+    
+    save_path = os.path.join(os.getcwd(), args.save)
+    # Copy the database
+    if os.system('cp -p "%s" "%s"' % (db, save_path)):
+        print('Unable to copy the database.')
         sys.exit(3)
 
-    fail = True
     for i in range(1, args.attempts+1):
         print('%d attempt' % i)
-        if attempt(i, mendeley, db, args.debug):
+        if attempt(i, mendeley, db, save_path, args.debug):
             print('Succeeded!')
-            fail = False
+            sys.exit(0)
             break
 
-    if not fail:
-        if os.system('cp -p "%s" "%s"' % (db, args.save)):
-            print('Unable to copy the file, you may have to copy the file and restore the database manually.')
-            sys.exit(4)
-
-    # Restore the database
-    if os.system('cp -p "%s.bak" "%s"' % (db, db)):
-        print('Unable to restore the database, you may have to restore the file manually.')
-        sys.exit(5)
-
-    # Delete the backup
-    if os.system('rm "%s.bak"' % db):
-        print('Unable to delete the backup, you may have to delete the file manually.')
-        sys.exit(6)
-
-    sys.exit(-1 if fail else 0)
+    sys.exit(-1)
