@@ -35,7 +35,7 @@ python3 hl_fulltext_align.py\
 
 Arguments: 
 - Publisher HTML (input): an HTML page downloaded from publisher website by [this Racket script](../mendeley/paper_html_download).
-- Highlights HTML (output): an HTML page generated from the PDF and the mendeley database with `<hl>` tags by [this Python script](../mendeley/highlight_extract)
+- Highlights HTML (input): an HTML page generated from the PDF and the mendeley database with `<hl>` tags by [this Python script](../mendeley/highlight_extract)
 - Aligned HTML (output): an HTML file with the two inputs aligned
 
 Example contents: 
