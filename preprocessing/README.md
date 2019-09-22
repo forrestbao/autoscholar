@@ -1,7 +1,7 @@
 # Preprocessing of text data in PDF/HTML
 
 This folder contains several scripts to prepare the data before machine learning stage:
-* `hl_fulltext_align.py`: Transfer user highlights to full-text HTML, by taking a full-text HTML file from the publisher ([downloaded via this script](../mendeley/paper_html_download)) and an HTML file containing manually annotated highlights extracted from PDF ([generated via this scrip](../mendeley/highlight_extract)). 
+* `hl_fulltext_align.py`: Transfer user highlights to full-text HTML, by taking a full-text HTML file from the publisher ([downloaded via this Racket script](../mendeley/paper_html_download)) and an HTML file containing manually annotated highlights extracted from PDF ([generated via this Python  script](../mendeley/highlight_extract)). 
 * `gen_data.py`: Generate the double-column CSV file that contains sentences and their labels for supervised ML. 
 
 The file `full_text_html_extract.py` is only provided as a library, not for end users to run. 
@@ -22,25 +22,39 @@ pip3 install lxml BeautifulSoup4 nltk
 python3 -c "import nltk; nltk.download('punkt')"
 ```
 
-## Usage and steps
+## Usage 
 
-**First**, run `hl_fulltext_align.py` to combine full-text and highlights into one HTML file: 
-
+**First:**
 
 ```shell
 python3 hl_fulltext_align.py\
     /path/to/publisher.html\
-    /path/to/extract.html\
-    /path/to/output.html
+    /path/to/highlights.html\
+    /path/to/aligned.html
 ```
 
 Arguments: 
-- Publisher html: an HTML page downloaded from publisher website by [the paper html download script from us](../mendeley/paper_html_download).
-- Extract html: an HTML page generated from the PDF and the mendeley database with `<hl>` tags by [the highlight extraction script from us](../mendeley/highlight_extract)
-- Output: an HTML file with highlighted sentences marked with <hl></hl>
+- Publisher HTML (input): an HTML page downloaded from publisher website by [this Racket script](../mendeley/paper_html_download).
+- Highlights HTML (output): an HTML page generated from the PDF and the mendeley database with `<hl>` tags by [this Python script](../mendeley/highlight_extract)
+- Aligned HTML (output): an HTML file with the two inputs aligned
 
+Example contents: 
+* publisher HTML: `<html>This is a happy day </html>`
+* highlights HTML: `<html><hl> happy </hl> </html>`
+* aligned HTML:  `<html>This is a  <hl> happy </hl> day </html>`
 
-**Second**, run `gen_data.py` to convert the highlighted HTML file to double-column CSV file for ML. 
+**Then:**
+
+```shell
+python3 gen_data.py\
+    /path/to/aligned.html
+    /path/to/label.csv
+```
+
+Arguments: 
+* Aligned HTML (input): an HTML file with the two inputs aligned
+* label CSV (output): a CSV file for supervised ML 
+
 
 ## Note: publisher determination
 Because different publishers have different HTML structures for papers, the publisher information is important for the correct extraction of text. 
