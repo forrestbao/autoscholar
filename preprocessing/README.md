@@ -1,8 +1,11 @@
 # Preprocessing of text data in PDF/HTML
 
 This folder contains several scripts to prepare the data before machine learning stage:
-* `full_text_html_extract.py`: Extract full text of a paper from the webpage version of the paper on the publisher's website.  
 * `hl_fulltext_align.py`: Transfer user highlights to full-text HTML, by taking a full-text HTML file from the publisher ([downloaded via this script](../mendeley/paper_html_download)) and an HTML file containing manually annotated highlights extracted from PDF ([generated via this scrip](../mendeley/highlight_extract)). 
+* `gen_data.py`: Generate the double-column CSV file that contains sentences and their labels for supervised ML. 
+
+The file `full_text_html_extract.py` is only provided as a library, not for end users to run. 
+
 
 ## Dependencies
 * Python 3
@@ -18,15 +21,14 @@ sudo apt install agrep
 pip3 install lxml BeautifulSoup4 nltk  
 python3 -c "import nltk; nltk.download('punkt')"
 ```
-## Extract full text of a paper `full_text_html_extract.py`
-This script is now provided as a library. Not for end users. 
 
-## Generate the file for ML `generate_labeled_data.py`
+## Usage and steps
 
-Usage:
+**First**, run `hl_fulltext_align.py` to combine full-text and highlights into one HTML file: 
+
 
 ```shell
-python3 generate_labeled_data.py\
+python3 hl_fulltext_align.py\
     /path/to/publisher.html\
     /path/to/extract.html\
     /path/to/output.html
@@ -37,6 +39,8 @@ Arguments:
 - Extract html: an HTML page generated from the PDF and the mendeley database with `<hl>` tags by [the highlight extraction script from us](../mendeley/highlight_extract)
 - Output: an HTML file with highlighted sentences marked with <hl></hl>
 
+
+**Second**, run `gen_data.py` to convert the highlighted HTML file to double-column CSV file for ML. 
 
 ## Note: publisher determination
 Because different publishers have different HTML structures for papers, the publisher information is important for the correct extraction of text. 
