@@ -533,7 +533,7 @@ if __name__ == '__main__':
             print('------ ' + id)
             publisher_html = os.path.join(publisher_dir, id + '.html')
             extract_html = os.path.join(extract_dir, id + '.html')
-            output_file = os.path.join(csv_dir, id + '.csv')
+            output_file = os.path.join(csv_dir, id + '.html')
             if not os.path.exists(extract_html):
                 print('========', extract_html, 'does not exist')
             else:
