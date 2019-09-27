@@ -23,7 +23,7 @@ import signal
 import time
 import argparse
 
-from . full_text_html_extract import html2text
+from full_text_html_extract import html2text
 
 def devide_string(string, num_interval):
     """Devide string into intervals
@@ -515,12 +515,32 @@ def reorder_hl(s):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('publisher_html', help='publisher html')
-    parser.add_argument('extract_html', help='extract html with <hl> from pdf')
-    parser.add_argument('output_html', help='output html file')
+    parser.add_argument('publisher_html', help='publisher html file or folder path')
+    parser.add_argument('extract_html', help='extracted html file with <hl> from pdf or folder path ')
+    parser.add_argument('output_html', help='output html file or folder path')
     args = parser.parse_args()
-    align(args.publisher_html, args.extract_html, args.output_html)
-    
+    if os.path.isfile(args.publisher_html) and os.path.isfile(args.extract_html):
+        align(args.publisher_html, args.extract_html, args.output_html)
+    elif os.path.isdir(args.publisher_html) and \
+        os.path.isdir(args.extract_html) and \
+        os.path.isdir(args.output_html):
+        
+        publisher_dir = args.publisher_html
+        extract_dir = args.extract_html
+        csv_dir = args.output_html
+        for f in [f for f in os.listdir(publisher_dir) if f.endswith('.html')]:
+            id = f.split('.')[0]
+            print('------ ' + id)
+            publisher_html = os.path.join(publisher_dir, id + '.html')
+            extract_html = os.path.join(extract_dir, id + '.html')
+            output_file = os.path.join(csv_dir, id + '.csv')
+            if not os.path.exists(extract_html):
+                print('========', extract_html, 'does not exist')
+            else:
+                align(publisher_html, extract_html, output_file)
+                # print("Processing...")
+    else:
+        print("Arguments does not match or path(s) does not exist.")
     
 if __name__ == '__test__':
     doctest.testmod()
