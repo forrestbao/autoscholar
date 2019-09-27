@@ -233,12 +233,26 @@ def sentence_segmentation():
 
 if __name__ == "__main__":
     import os
-    hl_aligned_html_dir, csv_output_dir = "hl_html", "../ml/label_csv"
-    keywords =set()
-    for i in range(42, 81):
-        html_filename = os.path.join(hl_aligned_html_dir, str(i) + ".html")
-        csv_filename = os.path.join(csv_output_dir, str(i) + ".csv")
-        _ = hl_html_to_csv(html_filename, csv_filename)
+    import sys
+    import argparse
+    
+    parser = argparse.ArgumentParser()
+    parser.add_argument('aligned_html', help='an HTML file with the two inputs aligned.')
+    parser.add_argument('label_csv', help='a CSV file for supervised ML.')
+    args = parser.parse_args()
+
+    if not os.path.exists(args.aligned_html):
+        print(args.aligned_html + " does not exists", file=sys.stderr)
+        sys.exit(-1)
+
+    _ = hl_html_to_csv(args.aligned_html, args.label_csv)
+
+    # hl_aligned_html_dir, csv_output_dir = "hl_html", "../ml/label_csv"
+    # keywords =set()
+    # for i in [14, 16]:
+    #     html_filename = os.path.join(hl_aligned_html_dir, str(i) + ".html")
+    #     csv_filename = os.path.join(csv_output_dir, str(i) + ".csv")
+    #     _ = hl_html_to_csv(html_filename, csv_filename)
 
 #        keywords |= set(learn_keywords(html))
 #    print (keywords)
