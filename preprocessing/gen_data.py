@@ -237,15 +237,23 @@ if __name__ == "__main__":
     import argparse
     
     parser = argparse.ArgumentParser()
-    parser.add_argument('aligned_html', help='an HTML file with the two inputs aligned.')
-    parser.add_argument('label_csv', help='a CSV file for supervised ML.')
+    parser.add_argument('aligned_html', help='HTML file or folder path with the two inputs aligned.')
+    parser.add_argument('label_csv', help='Output CSV file or folder path for supervised ML.')
     args = parser.parse_args()
 
     if not os.path.exists(args.aligned_html):
         print(args.aligned_html + " does not exists", file=sys.stderr)
         sys.exit(-1)
-
-    _ = hl_html_to_csv(args.aligned_html, args.label_csv)
+    
+    if os.path.isfile(args.aligned_html):
+        _ = hl_html_to_csv(args.aligned_html, args.label_csv)
+    elif os.path.isdir(args.aligned_html) and os.path.isdir(args.label_csv):
+        for f in [f for f in os.listdir(args.aligned_html) if f.endswith('.html')]:
+            id = f.split('.')[0]
+            print('------ ' + id)
+            _ = hl_html_to_csv(os.path.join(args.aligned_html, id + '.html'), os.path.join(args.label_csv, id + '.csv'))
+    else:
+        print("Arguments does not match or path(s) does not exist.")
 
     # hl_aligned_html_dir, csv_output_dir = "hl_html", "../ml/label_csv"
     # keywords =set()
