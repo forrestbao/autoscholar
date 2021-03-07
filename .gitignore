@@ -1,0 +1,6 @@
+venv/*
+.idea/*
+MANIFEST
+*.manifest
+__pycache__/
+*$py.class

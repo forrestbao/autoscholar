@@ -1,0 +1,5 @@
+clientId: "Your Client Id"
+clientSecret: "Your Client Secret"
+redirectURI: "http://localhost:5000/oauth"
+username: "Your Username"
+password: "Your Password"

@@ -6,6 +6,8 @@ The script was built based on the link: https://eighty-twenty.org/2018/06/13/men
 * Mendeley version >= 1.19 with `stay signed in` checked
 * pygdbmi
 
+### NOTE: Only Works on Linux 
+
 To install `pygdbmi` run:
 ```
 pip install pygdbmi
