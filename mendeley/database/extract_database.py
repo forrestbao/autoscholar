@@ -135,6 +135,12 @@ def get_groups(session: MendeleySession):
 if __name__ == '__main__':
     config = getConfig('config.yaml')
     session = connect_to_mendeley_db(config)
-    pprint.pprint(get_documents_from_library(session))
-    pprint.pprint(get_groups(session))
+    # pprint.pprint(get_documents_from_library(session))
+    # pprint.pprint(get_groups(session))
+    # Annotation
+    access_token = session.token['access_token']
+    param = {"document_id": "fbd7fd4e-e24c-33e6-b39a-95bfa2e55749"}
+    headers = {'Authorization': 'Bearer {}'.format(access_token)}
+    response = requests.get(url='https://api.mendeley.com/annotations', headers=headers, params=param)
+    pprint.pprint(response.json())
 
