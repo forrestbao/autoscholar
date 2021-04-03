@@ -27,3 +27,6 @@ Config.yaml:
     - redirectURI: "http://localhost:5000/oauth"
     - username: "Your Mendeley Desktop Username"
     - password: "Your Mendeley Desktop Password"
+
+Database:
+    ![alt Document Schema](../readme/database_schema.png)

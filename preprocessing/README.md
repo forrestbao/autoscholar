@@ -2,7 +2,7 @@
 
 This folder contains several scripts to prepare the data before machine learning stage:
 * `full_text_html_extract.py`: Extract full text of a paper from the webpage version of the paper on the publisher's website.  
-* `hl_fulltext_align.py`: Transfer user highlights to full-text HTML, by taking a full-text HTML file from the publisher ([downloaded via this script](../mendeley/paper_html_download)) and an HTML file containing manually annotated highlights extracted from PDF ([generated via this scrip](../mendeley/highlight_extract)). 
+* `hl_fulltext_align.py`: Transfer user highlights to full-text HTML, by taking a full-text HTML file from the publisher ([downloaded via this script](../mendeley_old_code_base/paper_html_download)) and an HTML file containing manually annotated highlights extracted from PDF ([generated via this scrip](../mendeley_old_code_base/highlight_extract)). 
 
 ## Dependencies
 * Python 3
@@ -33,8 +33,8 @@ python3 generate_labeled_data.py\
 ```
 
 Arguments: 
-- Publisher html: an HTML page downloaded from publisher website by [the paper html download script from us](../mendeley/paper_html_download).
-- Extract html: an HTML page generated from the PDF and the mendeley database with `<hl>` tags by [the highlight extraction script from us](../mendeley/highlight_extract)
+- Publisher html: an HTML page downloaded from publisher website by [the paper html download script from us](../mendeley_old_code_base/paper_html_download).
+- Extract html: an HTML page generated from the PDF and the mendeley database with `<hl>` tags by [the highlight extraction script from us](../mendeley_old_code_base/highlight_extract)
 - Output: an HTML file with highlighted sentences marked with <hl></hl>
 
 

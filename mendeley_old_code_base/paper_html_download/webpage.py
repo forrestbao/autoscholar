@@ -140,7 +140,7 @@ if __name__ == '__main__':
 
 # Testing Code
 if __name__ == '__test__':
-    db_file = '/home/hebi/.local/share/data/Mendeley Ltd./Mendeley Desktop/lihebi.com@gmail.com@www.mendeley.com.sqlite'
+    db_file = '/home/hebi/.local/share/data/Mendeley Ltd./Mendeley Desktop/lihebi.com@gmail.com@www.mendeley_old_code_base.com.sqlite'
 
     conn = sqlite3.connect(db_file)
     cursor = conn.cursor()

@@ -95,7 +95,7 @@ def attempt(times, mendeley, db, save_path, debug=0):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-            description="Rescue the data from the envrypted mendeley database.")
+            description="Rescue the data from the envrypted mendeley_old_code_base database.")
     parser.add_argument('--path', '-p', required=True,
                         help="The mendeleydesktop file path.")
     parser.add_argument('--database', '-db', required=True,

@@ -1,10 +1,11 @@
-from flask import Flask, redirect, render_template, session
-from mendeley.session import MendeleySession
-from mendeley import Mendeley
+import os
+
 import requests
 import yaml
-import pprint
-
+from pprint import pprint
+from mendeley import Mendeley
+from mendeley.session import MendeleySession
+from sqlobject import *
 
 
 def getConfig(filename: str) -> dict:
@@ -50,97 +51,80 @@ def connect_to_mendeley_db(config: dict) -> MendeleySession:
         print('Error: Connecting to the Mendeley Database')
 
 
-def get_documents_from_library(session: MendeleySession):
+def connect_to_db():
     """
-    Get all the documents from the library
+    Connect to the sqlite database
     """
-    data = {"Documents": []}
-    for documents in session.documents.iter():
-        docDict = {}
-        docDict.__setitem__("id", documents.id)
-        docDict.__setitem__("title", documents.title)
-        docDict.__setitem__("doi", documents.identifiers)
-        docDict.__setitem__("type", documents.type)
-        docDict.__setitem__("year", documents.year)
-        docDict.__setitem__("created", documents.created)
-        docDict.__setitem__("source", documents.source)
-        docDict.__setitem__("lastModified", documents.last_modified)
-        if len(documents.authors) > 0:
-            authors = []
-            for author in documents.authors:
-                authorDict = {}
-                authorDict.__setitem__("firstName", author.first_name)
-                authorDict.__setitem__("lastName", author.last_name)
-                authors.append(authorDict)
-            docDict.__setitem__("authors", authors)
-        if documents.files is not None:
-            fileDict = {}
-            fileDict.__setitem__("catalog_id", documents.files.catalog_id)
-            fileDict.__setitem__("document_id", documents.files.document_id)
-            fileDict.__setitem__("group_id", documents.files.group_id)
-            docDict.__setitem__("files", fileDict)
-        data["Documents"].append(docDict)
-    return data
+    db_filename = os.path.abspath('mendeley.sqlite')
+    connection_url = "sqlite:" + db_filename
+    connection = connectionForURI(connection_url)
+    sqlhub.processConnection = connection
+    return sqlhub.processConnection
 
 
-def get_groups(session: MendeleySession):
+def get_all_document_by_group(session: MendeleySession, groupId: str) -> dict:
     """
-    Get Groups Associated with the profile
+    Get All the documents by group
+    Save the data to database
     """
-    groups = {"Groups": []}
-    for group in session.groups.iter():
-        groupDict = {}
-        groupDict.__setitem__("accessLevel", group.access_level)
-        groupDict.__setitem__("created", group.created)
-        groupDict.__setitem__("id", group.id)
-        groupDict.__setitem__("role", group.role)
-        groupDict.__setitem__("link", group.link)
-        groupDict.__setitem__("name", group.name)
-        groupDict.__setitem__("description", group.description)
-        groupDict.__setitem__("disciplines", group.disciplines)
-        if group.documents is not None:
-            groupDoc = []
-            for documents in group.documents.iter():
-                docDict = {}
-                docDict.__setitem__("abstract", documents.abstract)
-                docDict.__setitem__("id", documents.id)
-                docDict.__setitem__("title", documents.title)
-                docDict.__setitem__("doi", documents.identifiers)
-                docDict.__setitem__("type", documents.type)
-                docDict.__setitem__("year", documents.year)
-                docDict.__setitem__("created", documents.created)
-                docDict.__setitem__("source", documents.source)
-                docDict.__setitem__("lastModified", documents.last_modified)
-                docDict.__setitem__("keywords", documents.keywords)
-                if len(documents.authors) > 0:
-                    authors = []
-                    for author in documents.authors:
-                        authorDict = {}
-                        authorDict.__setitem__("firstName", author.first_name)
-                        authorDict.__setitem__("lastName", author.last_name)
-                        authors.append(authorDict)
-                    docDict.__setitem__("authors", authors)
-                if documents.files is not None:
-                    fileDict = {}
-                    fileDict.__setitem__("catalog_id", documents.files.catalog_id)
-                    fileDict.__setitem__("document_id", documents.files.document_id)
-                    fileDict.__setitem__("group_id", documents.files.group_id)
-                    docDict.__setitem__("files", fileDict)
-                groupDoc.append(docDict)
-            groupDict.__setitem__("documents", groupDoc)
-        groups["Groups"].append(groupDict)
-    return groups
+    if session is None:
+        raise ValueError('Mendeley Database: No Session Token Provided!')
+    if len(groupId) == 0:
+        raise ValueError('Mendeley Database: No Group Id Provided!')
+    access_token = session.token['access_token']
+    print(access_token)
+    headers = {'Authorization': 'Bearer {}'.format(access_token)}
+    params = {'group_id': groupId}
+    response = requests.get(url='https://api.mendeley.com/documents', headers=headers, params=params)
+    if response.status_code != 200:
+        raise requests.RequestException('Mendeley Database: {} - {}'.format(response.status_code, response))
+    else:
+        content = response.json()
+        return content
 
+
+def get_users_profile(session: MendeleySession):
+    """
+    Get Logged-In User Profile
+    """
+    # TODO: Repeating code: Make a different private method to retrieve the session token, Security Threat!!!!!
+    if session is None:
+        raise ValueError('Mendeley Database: No Session Token Provided!')
+    else:
+        access_token = session.token['access_token']
+        headers = {'Authorization': 'Bearer {}'.format(access_token)}
+        response = requests.get(url='https://api.mendeley.com/profiles/me',
+                                headers=headers)
+        if response.status_code != 200:
+            raise requests.RequestException('Mendeley Database: {} - {}'.format(response.status_code, response))
+        else:
+            content = response.json()
+            return content
+
+
+def get_annotations_by_docId(session: MendeleySession, docid: str):
+    """
+    Get Annotation By Document Id
+    """
+    if session is None:
+        raise ValueError('Mendeley Database: No Session Token Provided!')
+    if len(docid)== 0:
+        raise ValueError('Retrieve Annotation By Id: {} - Invalid Document Id!'.format(docid))
+    else:
+        access_token = session.token['access_token']
+        headers = {'Authorization': 'Bearer {}'.format(access_token)}
+        params = {'document_id': docid}
+        response = requests.get(url='https://api.mendeley.com/annotations', headers=headers, params=params)
+        if response.status_code != 200:
+            raise requests.RequestException('Mendeley Database: {} - {}'.format(response.status_code, response))
+        else:
+            content = response.json()
+            return content
 
 if __name__ == '__main__':
     config = getConfig('config.yaml')
     session = connect_to_mendeley_db(config)
-    # pprint.pprint(get_documents_from_library(session))
-    # pprint.pprint(get_groups(session))
-    # Annotation
-    access_token = session.token['access_token']
-    param = {"document_id": "fbd7fd4e-e24c-33e6-b39a-95bfa2e55749"}
-    headers = {'Authorization': 'Bearer {}'.format(access_token)}
-    response = requests.get(url='https://api.mendeley.com/annotations', headers=headers, params=param)
-    pprint.pprint(response.json())
-
+    connect_to_db()
+    pprint(get_all_document_by_group(session, "a6921378-5d32-3644-961a-c3b6bd1d65f7"))
+    # pprint(get_users_profile(session))
+    # pprint(get_annotations_by_docId(session, "b477c17a-53b4-307f-8c8e-b91a97a52a51"))
