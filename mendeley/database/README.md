@@ -28,5 +28,9 @@ Config.yaml:
     - username: "Your Mendeley Desktop Username"
     - password: "Your Mendeley Desktop Password"
 
+Ouput: 
+    - Run extract_database.py 
+    - It will generate a mendeley.sqlite file containing required data
+
 Database:
     ![alt Document Schema](../readme/database_schema.png)
