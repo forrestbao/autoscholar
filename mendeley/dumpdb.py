@@ -1,12 +1,6 @@
-import os
-import sqlite3
-
-import requests
-import yaml
-from mendeley import Mendeley
-from mendeley.session import MendeleySession
-import enum
-
+###############
+# Functions to dump Mendeley annotations to a SQLite databse
+###############
 
 ####################
 #   ENUM
@@ -108,55 +102,10 @@ CREATE_ANNOTATION_POSITION_TABLE = """
                                         FOREIGN KEY (annotationid) REFERENCES annotation(id));
                                     """
 
-
-####################
-#   Configuration
-#       - Mendeley
-#       - Database
-####################
-
-def getConfig(filename: str) -> dict:
-    """
-    Read the config.yaml file
-    """
-    try:
-        with open(file=filename) as configFile:
-            config = yaml.load(configFile, Loader=yaml.FullLoader)
-            return config
-    except FileNotFoundError as fne:
-        print('File {} not found!'.format(filename))
-
-
-def connect_to_mendeley_db(config: dict) -> MendeleySession:
-    """
-    Connect to the Mendeley Database
-    """
-    if len(config) == 0:
-        raise ValueError('Configuration Error: Check the configuration yaml file!')
-    try:
-        mendeley = Mendeley(client_id=config.get('clientId'), client_secret=config.get('clientSecret'),
-                            redirect_uri=config.get('redirectURI'))
-        authorization = mendeley.start_implicit_grant_flow()
-        if authorization is not None:
-            loginURL = authorization.get_login_url()
-            if loginURL != "" or loginURL is not None:
-                authHeader = {
-                    "username": config.get("username"),
-                    "password": config.get("password")
-                }
-                request = requests.post(loginURL, allow_redirects=False, data=authHeader)
-                if request.status_code >= 400:
-                    raise ConnectionError(
-                        'Error: Cannot connect to Mendeley Database: Status Code: {}'.format(request.status_code))
-                session = authorization.authenticate(request.headers['Location'])
-                return session
-            else:
-                raise ValueError('Error: Cannot Retrieve the Login URL')
-        else:
-            raise ConnectionAbortedError('Error: Unauthorized User!')
-    except Exception as exc:
-        print('Error: Connecting to the Mendeley Database')
-
+###############
+# Functions to dump Mendeley annotations to a SQLite databse
+# Not in use. Kept for future reference. 
+###############
 
 def connect_to_db():
     """
@@ -204,72 +153,6 @@ def insert_data(connection, data, table: str):
         cursor.close()
 
 
-####################
-#   Retrieving Data
-####################
-
-def get_all_document_by_group(session: MendeleySession, groupId: str) -> list:
-    """
-    Get All the documents by group
-    Save the data to database
-    """
-    if session is None:
-        raise ValueError('Mendeley Database: No Session Token Provided!')
-    if len(groupId) == 0:
-        raise ValueError('Mendeley Database: No Group Id Provided!')
-    access_token = session.token['access_token']
-    headers = {'Authorization': 'Bearer {}'.format(access_token)}
-    params = {'group_id': groupId, 'view': 'all'}
-    response = requests.get(url='https://api.mendeley.com/documents', headers=headers, params=params)
-    if response.status_code != 200:
-        raise requests.RequestException('Mendeley Database: {} - {}'.format(response.status_code, response))
-    else:
-        content = response.json()
-        return content
-
-
-def get_users_profile(session: MendeleySession):
-    """
-    Get Logged-In User Profile
-    """
-    # TODO: Repeating code: Make a different private method to retrieve the session token, Security Threat!!!!!
-    if session is None:
-        raise ValueError('Mendeley Database: No Session Token Provided!')
-    else:
-        access_token = session.token['access_token']
-        headers = {'Authorization': 'Bearer {}'.format(access_token)}
-        response = requests.get(url='https://api.mendeley.com/profiles/me',
-                                headers=headers)
-        if response.status_code != 200:
-            raise requests.RequestException('Mendeley Database: {} - {}'.format(response.status_code, response))
-        else:
-            content = response.json()
-            return content
-
-
-def get_annotations_by_docId(session: MendeleySession, docid: str):
-    """
-    Get Annotation By Document Id
-    """
-    if session is None:
-        raise ValueError('Mendeley Database: No Session Token Provided!')
-    if len(docid) == 0:
-        raise ValueError('Retrieve Annotation By Id: {} - Invalid Document Id!'.format(docid))
-    else:
-        access_token = session.token['access_token']
-        headers = {'Authorization': 'Bearer {}'.format(access_token)}
-        params = {'document_id': docid}
-        response = requests.get(url='https://api.mendeley.com/annotations', headers=headers, params=params)
-        if response.status_code != 200:
-            raise requests.RequestException('Mendeley Database: {} - {}'.format(response.status_code, response))
-        else:
-            content = response.json()
-            return content
-
-
-####################
-#   Cleaning Data
-####################
 def clean_document_data(connection, response: list):
     """
     Clean Document Detail
@@ -349,17 +232,17 @@ def clean_annotation_data(connection, response):
                                 annotationPosition.__setitem__("yvalue", str(yValue))
                     insert_data(connection, annotationPosition, TABLE.CREATE_ANNOTATION_POSITION_TABLE.value)
 
-
-if __name__ == '__main__':
-    if os.path.exists("mendeley.sqlite"):
-        os.remove("mendeley.sqlite")
-    config = getConfig('config.yaml')
-    session = connect_to_mendeley_db(config)
-    connection = connect_to_db()
-    document = get_all_document_by_group(session, "a6921378-5d32-3644-961a-c3b6bd1d65f7")
-    connection.commit()
-    clean_document_data(connection, document)
-    for eachDoc in document:
-        annotation = get_annotations_by_docId(session, eachDoc.get("id"))
-        clean_annotation_data(connection, annotation)
-        connection.commit()
+# Usage 
+# Some functions are from extract_annot.py
+# if __name__ == '__main__':
+#     if os.path.exists("mendeley.sqlite"):
+#         os.remove("mendeley.sqlite")
+#     session = connect_to_mendeley_db(config)
+#     connection = connect_to_db()
+#     document = get_all_document_by_group(session, "a6921378-5d32-3644-961a-c3b6bd1d65f7")
+#     connection.commit()
+#     clean_document_data(connection, document)
+#     for eachDoc in document:
+#         annotation = get_annotations_by_docId(session, eachDoc.get("id"))
+#         clean_annotation_data(connection, annotation)
+#         connection.commit()

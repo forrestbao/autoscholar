@@ -15,12 +15,12 @@ Once an app in registered, under My Application, click on the id that matches th
 
     -   ID is the ClientId 
     -   Expand the ID, Click on Generate secret, and copy the new generated secret.
-    -   Paste the ID, and the secret under config.yaml
+    -   Paste the ID, and the secret under `config.yaml`
         - clientId: ID 
         - clientSecret: Secret 
         - redirectURI: Redirect URL
 
-Config.yaml:
+`config.yaml`:
 
     - clientId: ID
     - clientSecret: "Secret"
@@ -28,9 +28,9 @@ Config.yaml:
     - username: "Your Mendeley Desktop Username"
     - password: "Your Mendeley Desktop Password"
 
-Ouput: 
-    - Run extract_database.py 
-    - It will generate a mendeley.sqlite file containing required data
+Using our script:  
+    - Open `extract_annot.py`. Go to the bottom, change the value in this line `groupName = 'BioNLP'`
+      to the name of a Mendeley group that you own. 
+    - Run `extract_annot.py`. It will dump annotations into a JSON file like `annot.json`
+      
 
-Database:
-    ![alt Document Schema](../readme/database_schema.png)
