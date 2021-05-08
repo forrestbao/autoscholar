@@ -29,6 +29,7 @@ Once an app in registered, under My Application, click on the id that matches th
     - password: "Your Mendeley Desktop Password"
 
 Using our script:  
+    - Install Mendeley Python SDK via command `pip3 install mendeley`
     - Open `extract_annot.py`. Go to the bottom, change the value in this line `groupName = 'BioNLP'`
       to the name of a Mendeley group that you own. 
     - Run `extract_annot.py`. It will dump annotations into a JSON file like `annot.json`
