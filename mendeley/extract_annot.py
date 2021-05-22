@@ -75,7 +75,12 @@ def get_annots_by_group_name(session: MendeleySession, groupName:str):
     for doc in docs.iter(page_size=200):
         annots_per_doc = get_annotations_by_docId(session, doc.id)
         
-        doc_info = {'doc_id':doc.id, 'doc_title':doc.title, 'year':doc.year, 'source':doc.source}
+        doc_info = {'doc_id':doc.id, 
+            'doc_title':doc.title, 
+            'year':doc.year, 
+            'source':doc.source,
+            'url': doc.files.list().items[0].download_url
+        }
         annots_distilled_per_doc = \
         [ {key:annot[key] for key in ['id','type','profile_id', 'positions']}            
                       for annot in annots_per_doc  if annot['type']!='note'  ]
