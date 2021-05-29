@@ -38,6 +38,20 @@ def addHighlight(annotation_file, pdf_folder, output_folder):
         pbar.update(1)
     pbar.close()
 
+def addPredHighlight(pdf_file, output_file, predicted, debug=True):
+    pdf = fitz.open(pdf_file)
+    pcnt = 0
+    for page in pdf:
+        hl = predicted[pcnt]
+        for label, sent, sent_rect in hl:
+            if debug:
+                print(sent)
+            for rect in sent_rect:
+                page.add_highlight_annot(fitz.Rect(rect))
+        pcnt += 1
+    pdf.save(output_file)
+    pdf.close()
+
 def areaCriteria(rect1, rect2):
     rect = fitz.Rect(rect1)
     rect.intersect(rect2)
@@ -62,11 +76,13 @@ def doc2word(pdf_file):
         # Ignore block information now, may utilize in the future
         words = page.get_text('words')
 
+        page_words = []
         for word in words:
             rect = word[:4]
             text = word[4]  # No '\t' or '\n' will be in text
             label = int(any([(areaCriteria(fitz.Rect(rect), annot_rect) > 0.5) for annot_rect in annots]))
-            doc_words.append((label, text, rect))
+            page_words.append((label, text, rect))
+        doc_words.append(page_words)
 
     pdf.close()
     return doc_words
@@ -92,26 +108,29 @@ def sent_tokenize(texts):
     return doc_sents
 
 def word2sentence(doc_words):
-    labels, texts, rects = zip(*doc_words)
-    sents = sent_tokenize(texts)
-    
+    pages = len(doc_words)
     doc_sents = []
-    word_count = 0
-    for sent in sents:
-        words = sent.split(' ')
-        num_words = len(words)
+    for page_words in doc_words:
+        labels, texts, rects = zip(*page_words)
+        sents = sent_tokenize(texts)
+        
+        page_sents = []
+        word_count = 0
+        for sent in sents:
+            words = sent.split(' ')
+            num_words = len(words)
 
-        label = int(any(labels[word_count:word_count+num_words]))
-        sent_rect = rects[word_count:word_count+num_words]
-        doc_sents.append((label, sent, sent_rect))
+            label = int(any(labels[word_count:word_count+num_words]))
+            sent_rect = rects[word_count:word_count+num_words]
+            page_sents.append((label, sent, sent_rect))
 
-        # print(sent)
-        # print(texts[word_count:word_count+num_words])
-        # print('')
+            # print(sent)
+            # print(texts[word_count:word_count+num_words])
+            # print('')
 
-        word_count += num_words
-    
-    assert(word_count == len(texts))
+            word_count += num_words
+        assert(word_count == len(texts))
+        doc_sents.append(page_sents)
     
     return doc_sents
 
@@ -132,9 +151,10 @@ def main(genPDF=False):
         doc_sents = word2sentence(doc_words)
 
         with open(os.path.join(dataset_folder, file+'.tsv'), "w", encoding="utf-8") as f:
-            for label, sent, _ in doc_sents:
-                f.write(str(label) + '\t' + sent)
-                f.write('\n')
+            for page_sents in doc_sents:
+                for label, sent, _ in page_sents:
+                    f.write(str(label) + '\t' + sent)
+                    f.write('\n')
         
         pbar.update(1)
     pbar.close()
