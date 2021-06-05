@@ -66,12 +66,12 @@ class SVM:
         # Standardization
         vectors_scaled = self.scaler.fit_transform(features)
         X, y = sklearn.utils.shuffle(vectors_scaled, labels)
-        with open("train.pickle", "wb") as f:
+        with open(cfg.preprocessed_file, "wb") as f:
             pickle.dump( (X, y), f)
 
     def train(self):
         X, y = None, None
-        with open("train.pickle", "rb") as f:
+        with open(cfg.preprocessed_file, "rb") as f:
             X, y = pickle.load(f)
         # Training
         print("Training...")
@@ -108,7 +108,7 @@ def load_model(path):
 if __name__ == "__main__":
     model = SVM()
     model.preprocessing(cfg.train_tsv_file)
-    save_model(model, cfg.preprocessed_file)
+    save_model(model, cfg.model_file)
     model.train()
     save_model(model, cfg.model_file)
 
