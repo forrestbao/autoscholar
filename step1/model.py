@@ -3,25 +3,46 @@ import stanfordcorenlp
 import feature as pre
 import pickle
 import sklearn
+import config as cfg
 import numpy as np
 from sklearn import preprocessing, model_selection
 from sklearn.svm import SVC
+import json
+
+class NumpyEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return json.JSONEncoder.default(self, obj)
 
 class SVM:
-    def __init__(self):
-        stopword_path = 'sci_stopwords.txt'
-        unit_file = 'units.txt'
-        
+    def init(self):
         self.nlp = None
-        self.stopwords = set(open(stopword_path, 'r').read().split())
-        self.units = open(unit_file, 'r').read().split()
+        self.stopwords = set(open(cfg.stopword_path, 'r').read().split())
+        self.units = open(cfg.unit_file, 'r').read().split()
         self.IDF = None
-        self.scaler = preprocessing.StandardScaler()
         self.clf = None
+        self.scaler = preprocessing.StandardScaler()
+
+    def __init__(self):        
+        self.init()
+        self.param = {
+            "C": 10.0 ** np.arange(-2,2),
+            #"gamma": [0., 0.0001, 0.001, 0.01, 0.1],  # experience: epsilon>=0.1 is not good.
+            "kernel": [
+                # "linear",
+                "rbf",
+                #"poly",  # polynomial kernel sucks. Never use it.
+                #"sigmoid",
+                # "precomputed"
+                ],
+            #"degree": [5,], # because polynomial kernel sucks. Never use it.
+            #"gamma": 10.0 ** numpy.arange(-4, 4),
+        }
+        self.model = SVC()
 
     def open_nlphandler(self):
-        stanfordcorenlp_jar_location = '/mnt/d/stanford-corenlp-full-2018-02-27/'
-        self.nlp = stanfordcorenlp.StanfordCoreNLP(stanfordcorenlp_jar_location)
+        self.nlp = stanfordcorenlp.StanfordCoreNLP(cfg.stanfordcorenlp_jar_location)
     
     def close_nlphandler(self):
         self.nlp.close()
@@ -55,23 +76,15 @@ class SVM:
         # Training
         print("Training...")
         svm = SVC()
-        params = {
-            "C": 10.0 ** np.arange(-2,2),
-            #"gamma": [0., 0.0001, 0.001, 0.01, 0.1],  # experience: epsilon>=0.1 is not good.
-            "kernel": [
-                # "linear",
-                "rbf",
-                #"poly",  # polynomial kernel sucks. Never use it.
-                #"sigmoid",
-                # "precomputed"
-                ],
-            #"degree": [5,], # because polynomial kernel sucks. Never use it.
-            #"gamma": 10.0 ** numpy.arange(-4, 4),
-        }
         CORE_NUM = 4
         FOLDS = 5
-        self.clf = model_selection.GridSearchCV(svm, params, scoring="precision", n_jobs=CORE_NUM, cv=FOLDS)
+        self.clf = model_selection.GridSearchCV(self.model, self.param, 
+            scoring=["precision", "recall", "f1"],
+            refit="f1",
+            n_jobs=CORE_NUM, 
+            cv=model_selection.ShuffleSplit(FOLDS))
         self.clf.fit(X, y)
+        print(json.dumps(self.clf.cv_results_, indent=2, cls=NumpyEncoder))
         print("{}\t{}".format(self.clf.best_score_, self.clf.best_params_))
     
     def predict(self, texts):
@@ -83,20 +96,20 @@ class SVM:
         y = self.clf.predict(X)
         return y
 
-def save_model(model, path='saved.pickle'):
+def save_model(model, path):
     with open(path, "wb") as f:
         pickle.dump(model, f)
 
-def load_model(path='saved.pickle'):
+def load_model(path):
     with open(path, "rb") as f:
         return pickle.load(f)
     
 
 if __name__ == "__main__":
     model = SVM()
-    model.preprocessing("all.tsv")
-    save_model(model)
+    model.preprocessing(cfg.train_tsv_file)
+    save_model(model, cfg.preprocessed_file)
     model.train()
-    save_model(model)
+    save_model(model, cfg.model_file)
 
     print(model.predict(["Will this be hightligted ?"]))

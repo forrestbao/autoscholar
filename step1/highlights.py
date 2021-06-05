@@ -3,6 +3,7 @@ import json
 import os
 from tqdm import tqdm
 import re
+import config as cfg
 
 def addHighlight(annotation_file, pdf_folder, output_folder):
     data = {}
@@ -73,15 +74,29 @@ def doc2word(pdf_file):
         
         # Get words
         # Assume words appearing in reading order (Usually holds for a science paper)
-        # Ignore block information now, may utilize in the future
         words = page.get_text('words')
 
         page_words = []
+        page_block = []
+        block_no = -1
         for word in words:
             rect = word[:4]
             text = word[4]  # No '\t' or '\n' will be in text
+            # Block separated
+            block = word[5]
+            if block != block_no:
+                block_no = block
+                if len(page_block) > 0:
+                    page_words.append(page_block)
+                    page_block = []
+            
             label = int(any([(areaCriteria(fitz.Rect(rect), annot_rect) > 0.5) for annot_rect in annots]))
-            page_words.append((label, text, rect))
+            page_block.append((label, text, rect))
+        
+        if len(page_block) > 0:
+            page_words.append(page_block)
+            page_block = []
+        
         doc_words.append(page_words)
 
     pdf.close()
@@ -111,46 +126,47 @@ def word2sentence(doc_words):
     pages = len(doc_words)
     doc_sents = []
     for page_words in doc_words:
-        labels, texts, rects = zip(*page_words)
-        sents = sent_tokenize(texts)
-        
         page_sents = []
-        word_count = 0
-        for sent in sents:
-            words = sent.split(' ')
-            num_words = len(words)
+        for block in page_words:
+            labels, texts, rects = zip(*block)
+            sents = sent_tokenize(texts)
+            
+            word_count = 0
+            for sent in sents:
+                words = sent.split(' ')
+                num_words = len(words)
 
-            label = int(any(labels[word_count:word_count+num_words]))
-            sent_rect = rects[word_count:word_count+num_words]
-            page_sents.append((label, sent, sent_rect))
+                label = int(any(labels[word_count:word_count+num_words]))
+                sent_rect = rects[word_count:word_count+num_words]
+                page_sents.append((label, sent, sent_rect))
 
-            # print(sent)
-            # print(texts[word_count:word_count+num_words])
-            # print('')
+                # print(sent)
+                # print(texts[word_count:word_count+num_words])
+                # print('')
 
-            word_count += num_words
-        assert(word_count == len(texts))
+                word_count += num_words
+            assert(word_count == len(texts))
         doc_sents.append(page_sents)
-    
+        
     return doc_sents
 
 def main(genPDF=False):
-    annotation_file = "../mendeley/annot.json"
-    pdf_folder = "../mendeley/pdfs/"
-    output_folder = "./highlighted_pdfs/"
-    dataset_folder = "./dataset/"
-
     if genPDF:
         print('Generating highlighted pdf from mendeley...')
-        addHighlight(annotation_file, pdf_folder, output_folder)
+        if not os.path.exists(cfg.hl_pdf_folder):
+            os.makedirs(cfg.hl_pdf_folder)
+        addHighlight(cfg.annotation_file, cfg.pdf_download_path, cfg.hl_pdf_folder)
 
-    files = os.listdir(output_folder)
+    if not os.path.exists(cfg.dataset_folder):
+        os.makedirs(cfg.dataset_folder)
+
+    files = os.listdir(cfg.hl_pdf_folder)
     pbar = tqdm(total=len(files))
     for file in files:
-        doc_words = doc2word(os.path.join(output_folder, file))
+        doc_words = doc2word(os.path.join(cfg.hl_pdf_folder, file))
         doc_sents = word2sentence(doc_words)
 
-        with open(os.path.join(dataset_folder, file+'.tsv'), "w", encoding="utf-8") as f:
+        with open(os.path.join(cfg.dataset_folder, file+'.tsv'), "w", encoding="utf-8") as f:
             for page_sents in doc_sents:
                 for label, sent, _ in page_sents:
                     f.write(str(label) + '\t' + sent)
@@ -161,4 +177,4 @@ def main(genPDF=False):
 
 
 if __name__ == '__main__':
-    main()
+    main(cfg.GENERATE_HL_PDF)

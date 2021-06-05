@@ -155,12 +155,13 @@ def get_annotations_by_docId(session: MendeleySession, docid: str):
 
 
 if __name__ == '__main__':
-    groupName = 'BioNLP'
+    groupName = 'NSF project'
     config = getConfig('config.yaml')
     session = establish_mendeley_session(config)
     annots = get_annots_by_group_name(session, groupName)
     list(map(len, [annot['annots'] for annot in annots]))
-    with open("annot.json", 'w') as f:
+    import config as cfg
+    with open(cfg.annotation_file, 'w') as f:
         json.dump(annots, f, indent=2)
 
 

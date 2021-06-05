@@ -6,3 +6,6 @@ __pycache__/
 *$py.class
 config-*.yaml
 *sqlite
+*.pdf
+*.tsv
+*.pickle
