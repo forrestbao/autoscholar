@@ -26,11 +26,13 @@ def addHighlight(annotation_file, pdf_folder, output_folder):
         pdf = fitz.open(os.path.join(pdf_folder, doc_id+".pdf"))
         pcnt = 1
         for page in pdf:
-            page_rect = page.bound()
+            # page_rect = page.bound()
+            page_rect = page.mediabox
             if pcnt in highlights and len(highlights[pcnt]) > 0:
                 for rect in highlights[pcnt]:
                     # Transform from mendeley to pymupdf
                     rect[1], rect[3] = page_rect[3] - rect[3], page_rect[3] - rect[1]
+                    rect[0], rect[2] = rect[0] - page_rect[0], rect[2] - page_rect[0]
                     page.add_highlight_annot(rect)
             pcnt += 1
         
@@ -40,6 +42,7 @@ def addHighlight(annotation_file, pdf_folder, output_folder):
     pbar.close()
 
 def addPredHighlight(pdf_file, output_file, predicted, debug=True):
+    from itertools import chain
     pdf = fitz.open(pdf_file)
     pcnt = 0
     for page in pdf:
@@ -47,8 +50,22 @@ def addPredHighlight(pdf_file, output_file, predicted, debug=True):
         for label, sent, sent_rect in hl:
             if debug:
                 print(sent)
-            for rect in sent_rect:
-                page.add_highlight_annot(fitz.Rect(rect))
+            
+            # Add highight in word level
+            # for rect in sent_rect:
+            #     page.add_highlight_annot(fitz.Rect(rect))
+
+            # Add highlight in line level (Put rects in the same line into a big rect)
+            lrect, pline = fitz.Rect(sent_rect[0][0][0]), sent_rect[0][0][1]
+            for rect, line in chain.from_iterable(sent_rect):
+                if line == pline:
+                    lrect.includeRect(fitz.Rect(rect))
+                else:
+                    page.add_highlight_annot(lrect)
+                    lrect = fitz.Rect(rect)
+                    pline = line
+            page.add_highlight_annot(lrect)
+
         pcnt += 1
     pdf.save(output_file)
     pdf.close()
@@ -60,6 +77,26 @@ def areaCriteria(rect1, rect2):
     ac = rect.getArea()
     a1 = rect1.getArea()
     return ac / a1
+
+def word_concat(page_block):
+    result_block = []
+    size = len(page_block)
+    result_block.append(page_block[0])
+    for i in range(1, size):
+        label, text, box = page_block[i]
+        plabel, ptext, pbox = page_block[i-1]
+        line = box[0][1]
+        pline = pbox[0][1]
+        if ptext.endswith('-') and line == pline+1:
+            # Concat word
+            result_block.pop()
+            text = ptext[:-1] + text
+            label = int(label or plabel)
+            box = [pbox[0], box[0]]
+        
+        result_block.append((label, text, box))
+    
+    return result_block
 
 def doc2word(pdf_file):
     pdf = fitz.open(pdf_file)
@@ -84,16 +121,20 @@ def doc2word(pdf_file):
             text = word[4]  # No '\t' or '\n' will be in text
             # Block separated
             block = word[5]
+            # Use line info to concatenate word cross line
+            line = word[6]
             if block != block_no:
                 block_no = block
                 if len(page_block) > 0:
+                    page_block = word_concat(page_block)
                     page_words.append(page_block)
                     page_block = []
             
             label = int(any([(areaCriteria(fitz.Rect(rect), annot_rect) > 0.5) for annot_rect in annots]))
-            page_block.append((label, text, rect))
+            page_block.append((label, text, [(rect, line)]))
         
         if len(page_block) > 0:
+            page_block = word_concat(page_block)
             page_words.append(page_block)
             page_block = []
         

@@ -27,7 +27,7 @@ class SVM:
     def __init__(self):        
         self.init()
         self.param = {
-            "C": 10.0 ** np.arange(-2,2),
+            "C": 10.0 ** np.arange(0,4),
             #"gamma": [0., 0.0001, 0.001, 0.01, 0.1],  # experience: epsilon>=0.1 is not good.
             "kernel": [
                 # "linear",
