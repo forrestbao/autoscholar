@@ -6,13 +6,35 @@ import sklearn
 import config as cfg
 import numpy as np
 from sklearn import preprocessing, model_selection
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
 import json
 
 class NumpyEncoder(json.JSONEncoder):
+    """ Custom encoder for numpy data types """
     def default(self, obj):
-        if isinstance(obj, np.ndarray):
+        if isinstance(obj, (np.int_, np.intc, np.intp, np.int8,
+                            np.int16, np.int32, np.int64, np.uint8,
+                            np.uint16, np.uint32, np.uint64)):
+
+            return int(obj)
+
+        elif isinstance(obj, (np.float_, np.float16, np.float32, np.float64)):
+            return float(obj)
+
+        elif isinstance(obj, (np.complex_, np.complex64, np.complex128)):
+            return {'real': obj.real, 'imag': obj.imag}
+
+        elif isinstance(obj, (np.ndarray,)):
             return obj.tolist()
+
+        elif isinstance(obj, (np.bool_)):
+            return bool(obj)
+
+        elif isinstance(obj, (np.void)): 
+            return None
+
         return json.JSONEncoder.default(self, obj)
 
 class SVM:
@@ -30,10 +52,10 @@ class SVM:
             "C": 10.0 ** np.arange(0,4),
             #"gamma": [0., 0.0001, 0.001, 0.01, 0.1],  # experience: epsilon>=0.1 is not good.
             "kernel": [
-                # "linear",
+                "linear",
                 "rbf",
                 #"poly",  # polynomial kernel sucks. Never use it.
-                #"sigmoid",
+                "sigmoid",
                 # "precomputed"
                 ],
             #"degree": [5,], # because polynomial kernel sucks. Never use it.
@@ -75,8 +97,7 @@ class SVM:
             X, y = pickle.load(f)
         # Training
         print("Training...")
-        svm = SVC()
-        CORE_NUM = 4
+        CORE_NUM = 6
         FOLDS = 5
         self.clf = model_selection.GridSearchCV(self.model, self.param, 
             scoring=["precision", "recall", "f1"],
@@ -95,6 +116,25 @@ class SVM:
         X = self.scaler.transform(features)
         y = self.clf.predict(X)
         return y
+
+class RandomForest(SVM):
+    def __init__(self):        
+        self.init()
+        self.param = {
+            'n_estimators' : np.arange(1, 201, 10), 
+        }
+        self.model = RandomForestClassifier()
+
+class LinearModel(SVM):
+    def __init__(self):
+        self.init()
+        self.param = {
+            "C": 10.0 ** np.arange(0,4),
+            "penalty": ['l1', 'l2', 'none'],
+            "solver": ['saga'],
+            "max_iter" : [1000]
+        }
+        self.model = LogisticRegression()
 
 def save_model(model, path):
     with open(path, "wb") as f:
