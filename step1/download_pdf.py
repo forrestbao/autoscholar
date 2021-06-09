@@ -26,8 +26,9 @@ def main():
         print("Downloading...", doc['doc_title'])
         id = doc['doc_id']
         url = doc['url']
-        download(url, os.path.join(outputpath, id+'.pdf'))
-        time.sleep(1)
+        if not url is None: 
+            download(url, os.path.join(outputpath, id+'.pdf'))
+            time.sleep(1)
 
 if __name__ == "__main__":
     main()

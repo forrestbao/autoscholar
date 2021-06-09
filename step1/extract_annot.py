@@ -1,7 +1,8 @@
 import os
 import json
-
+import urllib.parse
 import requests
+from requests.packages.urllib3.util import url
 import yaml
 from mendeley import Mendeley
 from mendeley.session import MendeleySession
@@ -79,10 +80,15 @@ def get_annots_by_group_name(session: MendeleySession, groupName:str):
             'doc_title':doc.title, 
             'year':doc.year, 
             'source':doc.source,
-            'url': doc.files.list().items[0].download_url
+            'url': None
         }
+        docfiles = doc.files.list()
+        if len(docfiles.items) > 0:
+            doc_info['url'] = doc.files.list().items[0].download_url
         annots_distilled_per_doc = \
-        [ {key:annot[key] for key in ['id','type','profile_id', 'positions']}            
+        [ {key:annot[key] for key in ['id','type','profile_id', 'positions']} 
+            if annot['type'] != 'sticky_note' else
+          {key:annot[key] for key in ['id','type','profile_id', 'positions', 'text']}            
                       for annot in annots_per_doc  if annot['type']!='note'  ]
 
         # print (json.dumps(annots_distilled_per_doc, indent=4))
@@ -120,7 +126,7 @@ def get_users_profile(session: MendeleySession):
     """
     # TODO: Repeating code: Make a different private method to retrieve the session token, Security Threat!!!!!
     if session is None:
-        raise ValueError('Mendeley Database: No Session Token Provided!')
+        raise ValueError('Mendel''ey Database: No Session Token Provided!')
     else:
         access_token = session.token['access_token']
         headers = {'Authorization': 'Bearer {}'.format(access_token)}
@@ -142,20 +148,36 @@ def get_annotations_by_docId(session: MendeleySession, docid: str):
     if len(docid) == 0:
         raise ValueError('Retrieve Annotation By Id: {} - Invalid Document Id!'.format(docid))
     else:
+        params = {'document_id': docid, 'limit':'200'}
         access_token = session.token['access_token']
         headers = {'Authorization': 'Bearer {}'.format(access_token)}
-        params = {'document_id': docid, 'limit':'200'}
-        response = requests.get(url='https://api.mendeley.com/annotations', headers=headers, params=params)
-        if response.status_code != 200:
-            raise requests.RequestException('Mendeley Database: {} - {}'.format(response.status_code, response))
-        else:
-            content = response.json()
-            return content
+        annots = []
+        while True:
+            response = requests.get(url='https://api.mendeley.com/annotations', headers=headers, params=params)
+            if response.status_code != 200:
+                raise requests.RequestException('Mendeley Database: {} - {}'.format(response.status_code, response))
+            else:
+                # Mendeley restful API put next page in 'Link' field of response header
+                # To get the content of next page set 'marker'
+                annots.extend(response.json())
+                if 'link' not in response.headers:
+                    break
+                link = response.headers['link']
+                end = link.find('>; rel="next"')
+                if end == -1:
+                    break
+                link = link[1:end]
+                purl = urllib.parse.urlparse(link)
+                query = urllib.parse.parse_qs(purl.query)
+                if not 'marker' in query:
+                    break
+                params['marker'] = query['marker'][0]        
+        return annots
 
 
 
 if __name__ == '__main__':
-    groupName = 'NSF project'
+    groupName = 'BioNLP'
     config = getConfig('config.yaml')
     session = establish_mendeley_session(config)
     annots = get_annots_by_group_name(session, groupName)

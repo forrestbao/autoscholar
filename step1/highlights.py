@@ -5,6 +5,13 @@ from tqdm import tqdm
 import re
 import config as cfg
 
+class PDFEncoder(json.JSONEncoder):
+    """ Custom encoder for numpy data types """
+    def default(self, obj):
+        if isinstance(obj, (fitz.Rect, fitz.Point)):
+            return obj.__repr__()
+        return json.JSONEncoder.default(self, obj)
+
 def addHighlight(annotation_file, pdf_folder, output_folder):
     data = {}
     with open(annotation_file, "r", encoding="utf-8") as f:
@@ -12,33 +19,56 @@ def addHighlight(annotation_file, pdf_folder, output_folder):
 
     pbar = tqdm(total=len(data))
     for doc in data:
+        if doc['url'] is None:
+           continue 
         doc_id = doc["doc_id"]
         highlights = {}
+        texts = {}
         for annot in doc["annots"]:
-            for pos in annot["positions"]:
-                rect = fitz.Rect([pos["top_left"]["x"],
-                    pos["top_left"]["y"],
-                    pos["bottom_right"]["x"],
-                    pos["bottom_right"]["y"]])
-                if rect.getArea() > 1e-5:
+            if annot['type'] == 'highlight':
+                for pos in annot["positions"]:
+                    rect = fitz.Rect([pos["top_left"]["x"],
+                        pos["top_left"]["y"],
+                        pos["bottom_right"]["x"],
+                        pos["bottom_right"]["y"]])
+                    #if rect.getArea() > 1e-5:
                     highlights.setdefault(pos["page"], []).append(rect)
+            else:
+                for pos in annot["positions"]:
+                    assert(pos["top_left"]["x"] == pos["bottom_right"]["x"])
+                    assert(pos["top_left"]["y"] == pos["bottom_right"]["y"])
+                    point = fitz.Point(pos["top_left"]["x"], pos["top_left"]["y"])
+                    texts.setdefault(pos["page"], []).append((point, annot["text"]))
         
         pdf = fitz.open(os.path.join(pdf_folder, doc_id+".pdf"))
+        # print(doc_id)
         pcnt = 1
         for page in pdf:
             # page_rect = page.bound()
             page_rect = page.mediabox
+            # print(pcnt)
             if pcnt in highlights and len(highlights[pcnt]) > 0:
+                # print(json.dumps(highlights[pcnt], indent=2, cls=PDFEncoder))
                 for rect in highlights[pcnt]:
                     # Transform from mendeley to pymupdf
                     rect[1], rect[3] = page_rect[3] - rect[3], page_rect[3] - rect[1]
                     rect[0], rect[2] = rect[0] - page_rect[0], rect[2] - page_rect[0]
+                    if rect[1] > rect[3]:
+                        rect[1], rect[3] = rect[3], rect[1]
                     page.add_highlight_annot(rect)
+            if pcnt in texts and len(texts[pcnt]) > 0:
+                # print(json.dumps(texts[pcnt], indent=2, cls=PDFEncoder))
+                for point, text in texts[pcnt]:
+                    point[1] = page_rect[3] - point[1]
+                    point[0] = point[0] - page_rect[0]
+                    page.add_text_annot(point, text)
+            
             pcnt += 1
         
         pdf.save(os.path.join(output_folder, doc_id+".pdf"))
         pdf.close()
         pbar.update(1)
+        #break
     pbar.close()
 
 def addPredHighlight(pdf_file, output_file, predicted, debug=True):
@@ -201,6 +231,7 @@ def main(genPDF=False):
     if not os.path.exists(cfg.dataset_folder):
         os.makedirs(cfg.dataset_folder)
 
+    '''
     files = os.listdir(cfg.hl_pdf_folder)
     pbar = tqdm(total=len(files))
     for file in files:
@@ -215,6 +246,7 @@ def main(genPDF=False):
         
         pbar.update(1)
     pbar.close()
+    '''
 
 
 if __name__ == '__main__':
