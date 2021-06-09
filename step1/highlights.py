@@ -231,7 +231,7 @@ def main(genPDF=False):
     if not os.path.exists(cfg.dataset_folder):
         os.makedirs(cfg.dataset_folder)
 
-    '''
+    
     files = os.listdir(cfg.hl_pdf_folder)
     pbar = tqdm(total=len(files))
     for file in files:
@@ -246,7 +246,6 @@ def main(genPDF=False):
         
         pbar.update(1)
     pbar.close()
-    '''
 
 
 if __name__ == '__main__':
