@@ -28,7 +28,7 @@ def block2samples(page_block):
 
 def parse_pdf(pdf_file):
     pdf = fitz.open(pdf_file)
-
+    classSet = set()
     samples = []
     for page in pdf:
         # Get rect of annoataions
@@ -110,6 +110,7 @@ def parse_pdf(pdf_file):
                         if end != -1:
                             label = label[:end]
                         label = label.strip().lower()
+                        classSet.add(label)
                         # print(text, ':::' ,label)
             
             page_block.append((label, text, [(rect, line)]))
@@ -121,19 +122,27 @@ def parse_pdf(pdf_file):
         
     pdf.save('test.pdf')
     pdf.close()
-    return samples
+    return samples, classSet
 
 
 if __name__ == '__main__':
     if not os.path.exists(cfg.dataset_folder):
         os.makedirs(cfg.dataset_folder)
     
+    classSet = set()
+
     files = os.listdir(cfg.annot_pdf_folder)
     pbar = tqdm(total=len(files))
     for file in files:
-        samples = parse_pdf(os.path.join(cfg.annot_pdf_folder, file))
+        samples, cset = parse_pdf(os.path.join(cfg.annot_pdf_folder, file))
         with open(os.path.join(cfg.dataset_folder, file+'.jsonl'), "w", encoding = "utf-8") as f:
             for sample in samples:
                 f.write(json.dumps(sample) + '\n')
+        classSet = classSet.union(cset)
         pbar.update(1)
     pbar.close()
+
+    print(classSet)
+    with open(cfg.label_class_file, "w", encoding="utf-8") as f:
+        for label in sorted(classSet):
+            f.write(label+'\n')
