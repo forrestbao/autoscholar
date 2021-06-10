@@ -121,7 +121,7 @@ def word_concat(page_block):
             # Concat word
             result_block.pop()
             text = ptext[:-1] + text
-            label = int(label or plabel)
+            label = label or plabel
             box = [pbox[0], box[0]]
         
         result_block.append((label, text, box))

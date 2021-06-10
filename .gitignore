@@ -9,3 +9,4 @@ config-*.yaml
 *.pdf
 *.tsv
 *.pickle
+*.jsonl

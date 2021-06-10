@@ -1,12 +1,35 @@
 import config as cfg
 import fitz
 import os
+import json
 import numpy as np
+import sys
+from tqdm import tqdm
+sys.path.append('../step1')
+from highlights import word_concat, areaCriteria, sent_tokenize
+
+def block2samples(page_block):
+    samples = []
+    labels, texts, rects = zip(*page_block)
+    sents = sent_tokenize(texts)
+        
+    word_count = 0
+    for sent in sents:
+        words = sent.split(' ')
+        num_words = len(words)
+
+        tags = labels[word_count:word_count+num_words]
+        if any(tags):
+            samples.append((words, tags))
+        
+        word_count += num_words
+    
+    return samples
 
 def parse_pdf(pdf_file):
     pdf = fitz.open(pdf_file)
 
-    doc_words = []
+    samples = []
     for page in pdf:
         # Get rect of annoataions
         highlights = []
@@ -31,6 +54,7 @@ def parse_pdf(pdf_file):
             if found:
                 continue
             # 2. Give the text to the closest highlight(bottom right) below the point
+            '''
             idx = 0
             for i in range(size):
                 rect = highlights[i][0]
@@ -41,22 +65,25 @@ def parse_pdf(pdf_file):
                     idx = i
             
             highlights[idx].append(text)
+            '''
         
         # print(highlights)
-        ## Test if texts are matched correctly
-        '''
+        ## Test if texts are matched correctly        
         for hl in highlights:
+            # One highlight can only be paired with single or none comments
+            if not (len(hl) == 1 or len(hl) == 2):
+                print("Possible alignment problem:", hl)
+                # assert(False)
+            '''
             if len(hl) > 1:
                 annot = page.add_text_annot(hl[0].bl, hl[1], 'Comment')
                 annot.set_opacity(0.5)
-        '''
-        '''
+            '''
 
         # Get words
         # Assume words appearing in reading order (Usually holds for a science paper)
         words = page.get_text('words')
 
-        page_words = []
         page_block = []
         block_no = -1
         for word in words:
@@ -70,24 +97,43 @@ def parse_pdf(pdf_file):
                 block_no = block
                 if len(page_block) > 0:
                     page_block = word_concat(page_block)
-                    page_words.append(page_block)
+                    samples.extend(block2samples(page_block))
                     page_block = []
             
-            label = int(any([(areaCriteria(fitz.Rect(rect), annot_rect) > 0.5) for annot_rect in annots]))
+            label = ""
+            for hl in highlights:
+                if len(hl) > 1:
+                    annot_rect = hl[0]
+                    if areaCriteria(fitz.Rect(rect), annot_rect) > 0.5:
+                        label = hl[1]
+                        end = label.find(':')
+                        if end != -1:
+                            label = label[:end]
+                        label = label.strip().lower()
+                        # print(text, ':::' ,label)
+            
             page_block.append((label, text, [(rect, line)]))
         
         if len(page_block) > 0:
             page_block = word_concat(page_block)
-            page_words.append(page_block)
+            samples.extend(block2samples(page_block))
             page_block = []
         
-        doc_words.append(page_words)
-        '''
-    # pdf.save('test.pdf')
+    pdf.save('test.pdf')
     pdf.close()
-    # return doc_words
-    
-    
+    return samples
+
 
 if __name__ == '__main__':
-    parse_pdf(os.path.join(cfg.annot_pdf_folder, '738709a7-0f69-3c1c-875a-75dabc3a94be.pdf'))
+    if not os.path.exists(cfg.dataset_folder):
+        os.makedirs(cfg.dataset_folder)
+    
+    files = os.listdir(cfg.annot_pdf_folder)
+    pbar = tqdm(total=len(files))
+    for file in files:
+        samples = parse_pdf(os.path.join(cfg.annot_pdf_folder, file))
+        with open(os.path.join(cfg.dataset_folder, file+'.jsonl'), "w", encoding = "utf-8") as f:
+            for sample in samples:
+                f.write(json.dumps(sample) + '\n')
+        pbar.update(1)
+    pbar.close()
