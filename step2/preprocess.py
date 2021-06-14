@@ -3,6 +3,7 @@ import pickle
 import numpy as np
 import config as cfg
 import pickle
+import random
 
 addBefore = 1
 addAfter = 1
@@ -31,14 +32,18 @@ def build_class():
     
     classDict = dict(zip(classes, np.arange(len(classes))))
     return classes, classDict
+
 if __name__ == '__main__':
     classes, classDict = build_class()
     print(classDict)
+    num_classes = dict(zip(classes, [0]*len(classes)))
 
     X, y = [], []
     with open('all.jsonl', 'r') as f:
         for line in f:
             words, tags = json.loads(line)
+            for tag in tags:
+                num_classes[tag] += 1
             tags = [classDict[tag] for tag in tags]
             size = len(words)
             # 3-gram
@@ -47,7 +52,29 @@ if __name__ == '__main__':
     
     X = np.array(X, dtype=int)
     y = np.array(y, dtype=int)
+
+    neg_X = X[np.where(y == 0)]
+    neg_y = y[np.where(y == 0)]
+    pos_X = X[np.where(y != 0)]
+    pos_y = y[np.where(y != 0)]
+
+    # num_neg = np.max([num_classes[k] for k in num_classes if k != ''])
+    num_neg = len(pos_y)
+    # Sample part of the negative samples to balance the dataset
+    neg_sample = random.sample(range(len(neg_y)), num_neg) 
+    neg_y = neg_y[neg_sample]
+    neg_X = neg_X[neg_sample]
+    
+    X = np.vstack([pos_X, neg_X])
+    y = np.concatenate([pos_y, neg_y])
+    # X = pos_X
+    # y = pos_y
+    print(X.shape, y.shape, len(neg_y) / len(y))
     for i in range(20):
         print("".join([chr(ch) for ch in X[i]]), y[i])
+    '''
+    print(num_classes)
+    print(len(X), num_classes[''] / len(X))
+    '''
     with open(cfg.preprocessed_file, "wb") as f:
         pickle.dump((X, y), f)

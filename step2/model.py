@@ -1,5 +1,7 @@
-import keras
-from keras.layers import Embedding, Dense, Bidirectional, LSTM
+import tensorflow as tf
+from tensorflow import keras
+# import keras
+from tensorflow.keras.layers import Embedding, Dense, Bidirectional, LSTM
 import pickle
 import config as cfg
 import sklearn
@@ -12,9 +14,9 @@ class CharRNN():
 
     def build_model(self, numClass = 200):
         self.model = keras.Sequential()
-        self.model.add(Embedding(256, 32, mask_zero=True))
-        self.model.add(Dense(32, activation='relu'))
-        self.model.add(Bidirectional(LSTM(32, return_sequences=False)))
+        self.model.add(Embedding(256, 256, mask_zero=True))
+        # self.model.add(Dense(32, activation='relu'))
+        self.model.add(LSTM(1024, return_sequences=False))
         # self.model.add(Dense(128, activation='relu'))
         self.model.add(Dense(numClass))
     
@@ -37,26 +39,32 @@ class CharRNN():
         self.build_model(np.max(y)+1)
 
         num_epochs = 20
-        self.model.compile(keras.optimizers.Adam(), loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+        self.model.compile(keras.optimizers.Adam(learning_rate=1e-3), 
+            loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True), 
+            metrics=['accuracy'])
 
         self.model.summary()
 
         cp_callback = keras.callbacks.ModelCheckpoint(
             filepath=self.checkpoint_path, 
+            monitor='acc',
+            save_best_only=True,
             verbose=1)
+        es_callback = keras.callbacks.EarlyStopping(monitor='loss',
+                                                    min_delta=0,
+                                                    patience=10,
+                                                    verbose=0,
+                                                    mode='auto')
 
-        history = self.model.fit(x=X, y=y, 
+        history = self.model.fit(x=X, y=y, batch_size=64,
                                 epochs=num_epochs, 
-                                validation_split=0.3, 
-                                callbacks=[cp_callback, keras.callbacks.EarlyStopping(monitor='val_loss',
-                                                                        min_delta=0,
-                                                                        patience=10,
-                                                                        verbose=0,
-                                                                        mode='auto')])
+                                # validation_split=0.3, 
+                                callbacks=[cp_callback, es_callback])
         plt.figure(figsize=(5, 2))
         try:
             plt.plot(history.history['loss'])
-            plt.plot(history.history['val_loss'])
+            if 'val_loss' in history.history:
+                plt.plot(history.history['val_loss'])
             plt.title('Model loss')
             plt.ylabel('Loss')
             plt.xlabel('Epoch')
@@ -72,6 +80,17 @@ class CharRNN():
         return np.argmax(y, axis=1)
 
 if __name__ == '__main__':
+    gpus = tf.config.experimental.list_physical_devices('GPU')
+    if gpus:
+        try:
+            # Currently, memory growth needs to be the same across GPUs
+            for gpu in gpus:
+                tf.config.experimental.set_memory_growth(gpu, True)
+                logical_gpus = tf.config.experimental.list_logical_devices('GPU')
+                print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
+        except RuntimeError as e:
+            # Memory growth must be set before GPUs have been initialized
+            print(e)
     model = CharRNN()
     model.train()
     

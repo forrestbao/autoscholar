@@ -1,0 +1,199 @@
+0.7 ml aliquot of dimethyl sulfoxide
+12,000 rpm
+13,000g for 5 min
+2 more days
+250 rpm
+30 °c for
+5 minfermentation time
+?
+acetate
+acetate name
+acetate titer
+amplified/overexpressed dna fragment
+amplified/overexpressed gene
+antibiotic
+arbutin
+b-ionone
+bacto agar without leucine and uracil
+bacto-peptone
+carbon soruce and concentration
+carbon souce
+carbon source
+carbon source adn concentration
+carbon source and concentratio
+carbon source and concentration
+carbon source and concentration 1 mol of glucose
+carbon source and concentration 20 g/l glucose
+carbon source and concentration 600 g/l glucose
+carbon source and concentration, 1mol of  glucose
+carbon srouce and concentration
+carbon surces
+chromatogram
+co-overexpressed gene
+coexpressed gene
+coexpressed gnee
+crtz
+deleged gene
+deleted (inactive) gene
+deleted gene
+deleted gene snf1
+deleted(truncated) genel hmg
+dissolved oxygen
+dmapp
+e. coli dh5a cultured temperature
+ermentation media shaking at 250 rpm
+expressed gene
+ferementation time
+fermenatation media
+fermentaion media
+fermentaion temperature
+fermentaiton media
+fermentaiton reactor and volume
+fermentaiton time
+fermentatin time
+fermentation 168h
+fermentation media
+fermentation media and amount
+fermentation media and concentration
+fermentation media constant shaking
+fermentation media type
+fermentation medial ynbg
+fermentation medium
+fermentation reactor and volume
+fermentation temp
+fermentation temperature
+fermentation temperature 120c
+fermentation temperature 20 °c
+fermentation temperature 240 oc
+fermentation temperature 30 °c
+fermentation temperature 37 °c
+fermentation temperature 45 °c
+fermentation temperature 4°c
+fermentation temperature 55 °c
+fermentation temperature 60 °c
+fermentation temperature 80 °c
+fermentation time
+fermentation time 1 min
+fermentation time 10 min
+fermentation time 15 min
+fermentation time 16 h
+fermentation time 4 days
+fermentation time 48 h
+fermentation time 5 min
+fermentation time16 h
+fermentation time： 2–3 days
+fermenttion temperature
+fermetation time
+flow rate
+flow rate 1.0 ml/ min
+gene
+gene peomoters
+gene promoter
+genes
+glucose
+heterologous gene
+homologous genes were act1
+injection volume
+kanamycin
+ku70 and ku80
+ku70-cp-f/r and ku80-cp-f/r
+lipid conent as the product name and the content
+media anme
+media name
+media ph
+media ph?
+modified gene
+mtyl037
+mtyl065
+nacl
+nitorgen content
+nitrogen base
+nitrogen content
+nitrogen content low
+nitrogen soruce
+nitrogen source
+nitrogen source 10 g/l yeast extract, 20 g/l pep- tone
+nitrogen source and concentration
+nitrogent content
+no notes made in the conclusion/after this point
+od600
+over expressed gene
+overespressed gene
+overexpress gene
+overexpressed gene
+overexpressed gene seacsl641p
+overexpressed genes
+oxygen level
+oxygen level 20%
+pacrtz
+phba
+plasmid
+po1f-at01
+product
+product 0.1 ml cultured cells were
+product anme
+product name
+product name and increase ratio
+product name and proportion
+product name and ratio
+product name and ratio to other lipid types
+product name and ratio to total lipid
+product name and titer
+product name and titer 1 mg/l-100 mg/l β-ionone
+product name and titerp
+product name and titer： 1 mg/ml 5-fluoroorotic
+product name and titier
+product name/; escherichia coli
+product name; fatty acid
+product name; sterculic acid
+product namel oleic acid
+product namen and titer
+product nsme
+product titer (for linoleic acid)
+product titer (for oleic acid)
+product titer (for ynbd1)
+product titer 1 g/l
+product titer for ynbp1
+product β-ionone
+produyct name
+promote gene
+promoter
+promoter gene
+reactor type
+reactor type and voluem
+reactor type and volume
+reactor type and volume 3-l bioreactor
+reactor type flask fermentation
+reactor volume
+recator type
+recator type andvolume
+revolutions per minute
+rna concentration
+seed culture
+shake-flask
+solid luria-bertani (lb) (medium)
+source
+st7974
+starin name
+strain name
+strain name/; l36dga1
+strain name; mtyl065
+strain nameylbi3017
+strain nameylbi3117
+strain nameylbi3117.
+strain nameylbi3118.
+strain name； ylbi0003
+strain titer
+straing name
+strains culture
+strains culutre
+stream name
+strian name
+titer
+transformants, fermentation temperature
+transformants, fermentation time
+trcrbkt
+tryptone
+yeast extraction
+yeast nitrogen base
+ypd

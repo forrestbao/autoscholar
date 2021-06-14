@@ -38,6 +38,8 @@ def parse_pdf(pdf_file):
             # print(annot, annot.rect)
             if annot.type[1] == 'Highlight':
                 highlights.append([annot.rect])
+                if 'content' in annot.info and len(annot.info['content']) > 0:
+                    highlights[-1].append(annot.info['content'])
             elif annot.type[1] == 'Text':
                 comments.append((annot.info['content'], annot.rect.tl))
         
@@ -120,7 +122,7 @@ def parse_pdf(pdf_file):
             samples.extend(block2samples(page_block))
             page_block = []
         
-    pdf.save('test.pdf')
+    # pdf.save('test.pdf')
     pdf.close()
     return samples, classSet
 
