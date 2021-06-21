@@ -20,6 +20,7 @@ Same as step1.
 python annots.py
 ```
 **Note:** In jsonl, each line is a json sample with the formats of [words:list, tags:list]. The tags and words are one to one correspondence (two lists have same length). The words are pymupdf words (i.e. may not be a natural word).
+
 3. Concatenate the jsonl to generate the final file. (change accordingly as **dataset_folder** in ``config.py``)
 ```
 cat dataset/*.jsonl > all.jsonl
