@@ -221,7 +221,7 @@ def word2sentence(doc_words):
         
     return doc_sents
 
-def main(genPDF=False):
+def main(genPDF=False, genTSV=False):
     if genPDF:
         print('Generating highlighted pdf from mendeley...')
         if not os.path.exists(cfg.hl_pdf_folder):
@@ -231,22 +231,22 @@ def main(genPDF=False):
     if not os.path.exists(cfg.dataset_folder):
         os.makedirs(cfg.dataset_folder)
 
-    
-    files = os.listdir(cfg.hl_pdf_folder)
-    pbar = tqdm(total=len(files))
-    for file in files:
-        doc_words = doc2word(os.path.join(cfg.hl_pdf_folder, file))
-        doc_sents = word2sentence(doc_words)
+    if genTSV:
+        files = os.listdir(cfg.hl_pdf_folder)
+        pbar = tqdm(total=len(files))
+        for file in files:
+            doc_words = doc2word(os.path.join(cfg.hl_pdf_folder, file))
+            doc_sents = word2sentence(doc_words)
 
-        with open(os.path.join(cfg.dataset_folder, file+'.tsv'), "w", encoding="utf-8") as f:
-            for page_sents in doc_sents:
-                for label, sent, _ in page_sents:
-                    f.write(str(label) + '\t' + sent)
-                    f.write('\n')
-        
-        pbar.update(1)
-    pbar.close()
+            with open(os.path.join(cfg.dataset_folder, file+'.tsv'), "w", encoding="utf-8") as f:
+                for page_sents in doc_sents:
+                    for label, sent, _ in page_sents:
+                        f.write(str(label) + '\t' + sent)
+                        f.write('\n')
+            
+            pbar.update(1)
+        pbar.close()
 
 
 if __name__ == '__main__':
-    main(cfg.GENERATE_HL_PDF)
+    main(cfg.GENERATE_HL_PDF, cfg.GENERATE_HL_TSV)

@@ -4,4 +4,4 @@ dataset_folder = "./dataset/"
 label_class_file = "class.txt"
 preprocessed_file = 'preprocessed.pickle'
 
-PADDING_LENGTH = 50
+PADDING_LENGTH = 100

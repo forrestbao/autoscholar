@@ -1,4 +1,14 @@
 # Step 1
+## File Structure
+- ``config.yaml``: Mendeley authentication configurations
+- ``config.py``: Paths/Flags settings
+- ``extract_annot.py``: Extract annotation from mendeley
+- ``download_pdf.py``: Download pdfs from annotation file of mendeley
+- ``highlights.py``: Add mendeley annotation to pdf & generate tsv dataset of sentences with binary labels
+- ``model.py``: Train the ML models
+- ``feature.py``: Feature extraction from dataset
+- ``main.py``: Add highlights to pdf based on the model trained
+
 ## Get Annotation from mendeley
 1. Configure ``config.yaml``, and run the following command:
 ```

@@ -5,8 +5,8 @@ import config as cfg
 import pickle
 import random
 
-addBefore = 1
-addAfter = 1
+addBefore = 2
+addAfter = 2
 
 def words2sample(words):
     size = len(words)

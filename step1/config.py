@@ -14,3 +14,4 @@ preprocessed_file = 'preprocessed.pickle'
 model_file = 'model.pickle'
 
 GENERATE_HL_PDF = True     # Generate highlighted pdf files based on mendeley annotation
+GENERATE_HL_TSV = True     # Generate highlight dataset from pdfs
