@@ -5,8 +5,8 @@ import config as cfg
 import pickle
 import random
 
-addBefore = 2
-addAfter = 2
+addBefore = 1
+addAfter = 1
 
 def words2sample(words):
     size = len(words)
@@ -14,8 +14,8 @@ def words2sample(words):
     for i in range(size):
         st = max(0, i-addBefore)
         ed = min(size, i+addAfter+1)
-        sample_string = " ".join(words[st: ed])
-        sample_string = sample_string.encode("ascii", "ignore").decode()
+        sample_string = " ".join(words[st: i]) + ' \a' + words[i] + '\a ' + " ".join(words[i+1:ed])
+        sample_string = sample_string.encode("ascii", "backslashreplace").decode()
         sample_int = [ord(ch) for ch in sample_string]
         # Truncate
         sample_int = sample_int[:cfg.PADDING_LENGTH]
@@ -71,7 +71,7 @@ if __name__ == '__main__':
     # y = pos_y
     print(X.shape, y.shape, len(neg_y) / len(y))
     for i in range(20):
-        print("".join([chr(ch) for ch in X[i]]), y[i])
+        print("".join([chr(ch) if ch != ord('\a') else '|' for ch in X[i]]), y[i])
     '''
     print(num_classes)
     print(len(X), num_classes[''] / len(X))

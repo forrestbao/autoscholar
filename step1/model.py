@@ -1,10 +1,11 @@
-from math import pi
+from math import pi, radians
 import stanfordcorenlp
 import feature as pre
 import pickle
 import sklearn
 import config as cfg
 import numpy as np
+import random
 from sklearn import preprocessing, model_selection
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
@@ -88,6 +89,20 @@ class SVM:
         # Standardization
         vectors_scaled = self.scaler.fit_transform(features)
         X, y = sklearn.utils.shuffle(vectors_scaled, labels)
+        
+        y = np.array(y)
+        pos, neg = np.where(y == 1), np.where(y == 0)
+        X_pos, y_pos = X[pos], y[pos]
+        X_neg, y_neg = X[neg], y[neg]
+        num_neg = np.min([len(y_pos) * 3, len(y_neg)])
+        # Sample part of the negative samples
+        neg_sample = random.sample(range(len(y_neg)), num_neg) 
+        y_neg = y_neg[neg_sample]
+        X_neg = X_neg[neg_sample]
+        X = np.vstack([X_pos, X_neg])
+        y = np.concatenate([y_pos, y_neg])
+        X, y = sklearn.utils.shuffle(X, y)
+        
         with open(cfg.preprocessed_file, "wb") as f:
             pickle.dump( (X, y), f)
 
@@ -121,7 +136,8 @@ class RandomForest(SVM):
     def __init__(self):        
         self.init()
         self.param = {
-            'n_estimators' : np.arange(1, 201, 10), 
+            'n_estimators' : np.arange(1, 201, 20), 
+            'max_samples': [0.1, 0.3, 0.5, 0.7, 0.9]
         }
         self.model = RandomForestClassifier()
 
@@ -146,7 +162,7 @@ def load_model(path):
     
 
 if __name__ == "__main__":
-    model = SVM()
+    model = RandomForest()
     model.preprocessing(cfg.train_tsv_file)
     save_model(model, cfg.model_file)
     model.train()

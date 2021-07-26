@@ -90,6 +90,7 @@ def feature_finalize(Features, IDF):
         if length == 0:
             # FIXME why zero
             length = 1
+        length = 1 # Why normalize by length
         feature_per_line = [x/length for x in feature_per_line ]
 
         New_features.append(feature_per_line)

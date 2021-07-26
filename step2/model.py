@@ -28,9 +28,9 @@ class CharRNN():
 
     def build_model(self, numClass = 200):
         self.model = keras.Sequential()
-        self.model.add(Embedding(256, 256, mask_zero=True))
+        self.model.add(Embedding(128, 128, mask_zero=True))
         # self.model.add(Dense(32, activation='relu'))
-        self.model.add(LSTM(1024, return_sequences=False, dropout=0.5))
+        self.model.add(LSTM(256, return_sequences=False))
         # self.model.add(Dense(128, activation='relu'))
         self.model.add(Dense(numClass))
     
@@ -60,11 +60,11 @@ class CharRNN():
 
         history = self.model.fit(x=X, y=y, batch_size=self.batch_size,
                                 epochs=self.num_epochs, 
-                                validation_split=0.3, 
+                                validation_split=0.2, 
                                 callbacks=self.fit_callbacks)
-        plt.figure(figsize=(5, 6))
+        plt.figure(figsize=(10, 2))
         try:
-            ax1 = plt.subplot(211)
+            ax1 = plt.subplot(121)
             plt.plot(history.history['loss'])
             if 'val_loss' in history.history:
                 plt.plot(history.history['val_loss'])
@@ -72,7 +72,7 @@ class CharRNN():
             ax1.set_ylabel('Loss')
             ax1.set_xlabel('Epoch')
             ax1.legend(['Train loss', 'Validation loss'], loc='upper right')
-            ax2 = plt.subplot(212)
+            ax2 = plt.subplot(122)
             plt.plot(history.history['acc'])
             plt.plot(history.history['val_acc'])
             ax2.set_title('Model Acc')
