@@ -5,6 +5,7 @@ import re, collections, math
 import stanfordcorenlp
 # from preprocessing.gen_data import calculate_special_feature_vector
 import csv
+import numpy as np
 from tqdm import tqdm
 
 def lemma_func(nlp_handler, sentence):
@@ -17,7 +18,7 @@ def lemma_func(nlp_handler, sentence):
             tags.append(token['lemma'])
     return list(zip(words, tags))
 
-def build_features(texts, nlp, stopwords, units):
+def build_features(texts, nlp, stopwords, units, **kwargs):
     """
     nlp = stanfordcorenlp.StanfordCoreNLP(stanfordcorenlp_jar_location)
     stopwords = set(open(stopword_path, 'r').read().split())
@@ -27,7 +28,7 @@ def build_features(texts, nlp, stopwords, units):
     Features = []
     
     for i in tqdm(range(len(texts))):
-        Features.append(feature_per_line(texts[i], nlp, stopwords, units)) 
+        Features.append(feature_per_line(texts[i], nlp, stopwords, units, **kwargs)) 
 
     # nlp.close()
 
@@ -42,17 +43,28 @@ def build_features(texts, nlp, stopwords, units):
 
     return Features, IDF
 
-def convert_features(texts, nlp, stopwords, units, IDF):
+def convert_features(texts, nlp, stopwords, units, IDF, **kwargs):
     Features = []
     for text in texts:
-        Features.append(feature_per_line(text, nlp, stopwords, units))
+        Features.append(feature_per_line(text, nlp, stopwords, units, **kwargs))
     Features = feature_finalize(Features, IDF)
     return Features
 
-def feature_per_line(Text, nlp_handler, stopwords, units):
+def feature_per_line(Text, nlp_handler, stopwords, units, model, tokenizer, **kwargs):
     """Turn a string/sentence into a feature vector
     """
-    
+    # Sentence Embedding Feature
+    embedding = np.zeros((1, 768), dtype=float)
+    try:
+        # Can't deal with excetionally long sentences
+        inputs = tokenizer(Text, return_tensors="pt")
+        outputs = model(**inputs)
+        embedding = outputs.pooler_output.detach().numpy()
+    except Exception as e:
+        print(e)
+        
+    embedding = embedding.flatten()
+
     Plain, tag_features = strip_special(Text) # <i>, <sup>, <sub> in a line 
     # print(Plain)
     tokens = text_normalize(nlp_handler, Plain)
@@ -63,7 +75,7 @@ def feature_per_line(Text, nlp_handler, stopwords, units):
 
     unigram_counts = collections.Counter(tokens) # Counter type
 
-    return (tag_features, unigram_counts, line_length, manual_features)
+    return (tag_features, unigram_counts, line_length, manual_features, embedding)
 
 def feature_finalize(Features, IDF):
     """From raw per line feature to final features
@@ -80,7 +92,7 @@ def feature_finalize(Features, IDF):
 
     New_features = [] 
 
-    for tag_feature, unigram_counts, length, manual_feature in Features:
+    for tag_feature, unigram_counts, length, manual_feature, embedding in Features:
         TFIDF = [idf * unigram_counts[term] for term, idf in IDF.items()]
         feature_per_line = TFIDF + \
                            list(manual_feature.values()) + \
@@ -91,8 +103,8 @@ def feature_finalize(Features, IDF):
             # FIXME why zero
             length = 1
         length = 1 # Why normalize by length
-        feature_per_line = [x/length for x in feature_per_line ]
-
+        feature_per_line = np.array([x/length for x in feature_per_line], dtype=float)
+        feature_per_line = np.concatenate([feature_per_line, embedding])
         New_features.append(feature_per_line)
     return New_features
  

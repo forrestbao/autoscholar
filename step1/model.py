@@ -10,6 +10,7 @@ from sklearn import preprocessing, model_selection
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.svm import SVC
+from transformers import AutoTokenizer, AutoModel
 import json
 
 class NumpyEncoder(json.JSONEncoder):
@@ -40,10 +41,12 @@ class NumpyEncoder(json.JSONEncoder):
 
 class SVM:
     def init(self):
-        self.nlp = None
-        self.stopwords = set(open(cfg.stopword_path, 'r').read().split())
-        self.units = open(cfg.unit_file, 'r').read().split()
-        self.IDF = None
+        self.processor = None
+        self.meta = {
+            'stopwords': set(open(cfg.stopword_path, 'r').read().split()),
+            'units': open(cfg.unit_file, 'r').read().split(),
+            'IDF': None
+        }
         self.clf = None
         self.scaler = preprocessing.StandardScaler()
 
@@ -64,12 +67,15 @@ class SVM:
         }
         self.model = SVC()
 
-    def open_nlphandler(self):
-        self.nlp = stanfordcorenlp.StanfordCoreNLP(cfg.stanfordcorenlp_jar_location)
+    def open_processors(self):
+        self.processor = {}
+        self.processor['nlp'] = stanfordcorenlp.StanfordCoreNLP(cfg.stanfordcorenlp_jar_location)
+        self.processor['tokenizer'] = AutoTokenizer.from_pretrained('allenai/scibert_scivocab_uncased')
+        self.processor['model'] = AutoModel.from_pretrained('allenai/scibert_scivocab_uncased')
     
-    def close_nlphandler(self):
-        self.nlp.close()
-        self.nlp = None
+    def close_processors(self):
+        self.processor['nlp'].close()
+        self.processor = None
 
     def preprocessing(self, train_csv):
         labels, texts = [], []
@@ -82,9 +88,9 @@ class SVM:
         
         # Pre-Processing
         print('Pre-Processing...')
-        self.open_nlphandler()
-        features, self.IDF = pre.build_features(texts, self.nlp, self.stopwords, self.units)
-        self.close_nlphandler() 
+        self.open_processors()
+        features, self.meta['IDF'] = pre.build_features(texts, **self.processor, **self.meta)
+        self.close_processors() 
         
         # Standardization
         vectors_scaled = self.scaler.fit_transform(features)
@@ -124,10 +130,10 @@ class SVM:
         print("{}\t{}".format(self.clf.best_score_, self.clf.best_params_))
     
     def predict(self, texts):
-        if self.nlp is None:
-            self.open_nlphandler()
+        if self.processor is None:
+            self.open_processors()
         
-        features = pre.convert_features(texts, self.nlp, self.stopwords, self.units, self.IDF)
+        features = pre.convert_features(texts, **self.meta, **self.processor)
         X = self.scaler.transform(features)
         y = self.clf.predict(X)
         return y
@@ -162,7 +168,7 @@ def load_model(path):
     
 
 if __name__ == "__main__":
-    model = RandomForest()
+    model = SVM()
     model.preprocessing(cfg.train_tsv_file)
     save_model(model, cfg.model_file)
     model.train()
