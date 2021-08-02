@@ -1,4 +1,4 @@
-stanfordcorenlp_jar_location = '/mnt/d/stanford-corenlp-full-2018-02-27/'
+stanfordcorenlp_jar_location = '/home/gluo/stanford-corenlp-full-2018-02-27/'
 stopword_path = 'sci_stopwords.txt'
 unit_file = 'units.txt'
 
@@ -15,3 +15,4 @@ model_file = 'model.pickle'
 
 GENERATE_HL_PDF = True     # Generate highlighted pdf files based on mendeley annotation
 GENERATE_HL_TSV = True     # Generate highlight dataset from pdfs
+NEGATIVE_RATIO = 3         # Nagative Sampling Ratio

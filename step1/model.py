@@ -65,6 +65,10 @@ class SVM:
             #"degree": [5,], # because polynomial kernel sucks. Never use it.
             #"gamma": 10.0 ** numpy.arange(-4, 4),
         }
+        self.best_param = {
+            "C": 10.0,
+            "kernel": "rbf"
+        }
         self.model = SVC()
 
     def open_processors(self):
@@ -75,6 +79,9 @@ class SVM:
     
     def close_processors(self):
         self.processor['nlp'].close()
+        del self.processor['nlp']
+        del self.processor['tokenizer']
+        del self.processor['model']
         self.processor = None
 
     def preprocessing(self, train_csv):
@@ -84,7 +91,7 @@ class SVM:
             for Line in f:
                 if len(Line) > 5: 
                     labels.append(int(Line[0]))
-                    texts.append(Line[1:])
+                    texts.append(Line[1:].strip())
         
         # Pre-Processing
         print('Pre-Processing...')
@@ -100,7 +107,7 @@ class SVM:
         pos, neg = np.where(y == 1), np.where(y == 0)
         X_pos, y_pos = X[pos], y[pos]
         X_neg, y_neg = X[neg], y[neg]
-        num_neg = np.min([len(y_pos) * 3, len(y_neg)])
+        num_neg = np.min([len(y_pos) * cfg.NEGATIVE_RATIO, len(y_neg)])
         # Sample part of the negative samples
         neg_sample = random.sample(range(len(y_neg)), num_neg) 
         y_neg = y_neg[neg_sample]
@@ -112,7 +119,7 @@ class SVM:
         with open(cfg.preprocessed_file, "wb") as f:
             pickle.dump( (X, y), f)
 
-    def train(self):
+    def train(self, grid_search=True):
         X, y = None, None
         with open(cfg.preprocessed_file, "rb") as f:
             X, y = pickle.load(f)
@@ -120,14 +127,19 @@ class SVM:
         print("Training...")
         CORE_NUM = 6
         FOLDS = 5
-        self.clf = model_selection.GridSearchCV(self.model, self.param, 
-            scoring=["precision", "recall", "f1"],
-            refit="f1",
-            n_jobs=CORE_NUM, 
-            cv=model_selection.ShuffleSplit(FOLDS))
-        self.clf.fit(X, y)
-        print(json.dumps(self.clf.cv_results_, indent=2, cls=NumpyEncoder))
-        print("{}\t{}".format(self.clf.best_score_, self.clf.best_params_))
+        if grid_search:
+            self.clf = model_selection.GridSearchCV(self.model, self.param, 
+                scoring=["precision", "recall", "f1"],
+                refit="f1",
+                n_jobs=CORE_NUM, 
+                cv=model_selection.ShuffleSplit(FOLDS))
+            self.clf.fit(X, y)
+            print(json.dumps(self.clf.cv_results_, indent=2, cls=NumpyEncoder))
+            print("{}\t{}".format(self.clf.best_score_, self.clf.best_params_))
+        else:
+            self.clf = self.model
+            self.clf.set_params(**self.best_param)
+            self.clf.fit(X, y)
     
     def predict(self, texts):
         if self.processor is None:
@@ -171,6 +183,7 @@ if __name__ == "__main__":
     model = SVM()
     model.preprocessing(cfg.train_tsv_file)
     save_model(model, cfg.model_file)
+    model = load_model(cfg.model_file)
     model.train()
     save_model(model, cfg.model_file)
 
