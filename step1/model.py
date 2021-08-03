@@ -74,8 +74,12 @@ class SVM:
     def open_processors(self):
         self.processor = {}
         self.processor['nlp'] = stanfordcorenlp.StanfordCoreNLP(cfg.stanfordcorenlp_jar_location)
-        self.processor['tokenizer'] = AutoTokenizer.from_pretrained('allenai/scibert_scivocab_uncased')
-        self.processor['model'] = AutoModel.from_pretrained('allenai/scibert_scivocab_uncased')
+        if cfg.USE_SCIBERT:
+            self.processor['tokenizer'] = AutoTokenizer.from_pretrained('allenai/scibert_scivocab_uncased')
+            self.processor['model'] = AutoModel.from_pretrained('allenai/scibert_scivocab_uncased')
+        else:
+            self.processor['tokenizer'] = None
+            self.processor['model'] = None
     
     def close_processors(self):
         self.processor['nlp'].close()

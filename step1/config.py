@@ -15,4 +15,5 @@ model_file = 'model.pickle'
 
 GENERATE_HL_PDF = True     # Generate highlighted pdf files based on mendeley annotation
 GENERATE_HL_TSV = True     # Generate highlight dataset from pdfs
-NEGATIVE_RATIO = 3         # Nagative Sampling Ratio
+NEGATIVE_RATIO = 3         # Nagative sampling ratio
+USE_SCIBERT = True         # SciBert sentence embedding

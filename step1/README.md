@@ -1,4 +1,13 @@
 # Step 1
+
+## Installation
+Install Dependencies:
+- [PyMuPDF](https://pypi.org/project/PyMuPDF/)
+- [stanfordcorenlp](https://github.com/Lynten/stanford-corenlp)
+- [Hugging Face transformers](https://huggingface.co/transformers/installation.html)(Pytorch)
+- [scikit-learn](https://scikit-learn.org/stable/install.html)
+- [Mendeley Python SDK](https://github.com/Mendeley/mendeley-python-sdk)(Optional)
+
 ## File Structure
 - ``config.yaml``: Mendeley authentication configurations
 - ``config.py``: Paths/Flags settings

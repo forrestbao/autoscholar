@@ -61,9 +61,12 @@ def feature_per_line(Text, nlp_handler, stopwords, units, model, tokenizer, **kw
         outputs = model(**inputs)
         embedding = outputs.pooler_output.detach().numpy()
     except Exception as e:
-        print(e)
+        if not model is None:
+            print(e)
         
     embedding = embedding.flatten()
+    if model is None:
+        embedding = None
 
     Plain, tag_features = strip_special(Text) # <i>, <sup>, <sub> in a line 
     # print(Plain)
@@ -104,7 +107,8 @@ def feature_finalize(Features, IDF):
             length = 1
         length = 1 # Why normalize by length
         feature_per_line = np.array([x/length for x in feature_per_line], dtype=float)
-        feature_per_line = np.concatenate([feature_per_line, embedding])
+        if not embedding is None:
+            feature_per_line = np.concatenate([feature_per_line, embedding])
         New_features.append(feature_per_line)
     return New_features
  
