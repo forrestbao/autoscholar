@@ -2,10 +2,15 @@
 
 
 import re, collections, math
+from numpy.core.fromnumeric import trace
+from six import python_2_unicode_compatible
 import stanfordcorenlp
 # from preprocessing.gen_data import calculate_special_feature_vector
 import csv
 import numpy as np
+import h5py
+import config as cfg
+import traceback
 from tqdm import tqdm
 
 def lemma_func(nlp_handler, sentence):
@@ -56,13 +61,20 @@ def feature_per_line(Text, nlp_handler, stopwords, units, model, tokenizer, **kw
     # Sentence Embedding Feature
     embedding = np.zeros((1, 768), dtype=float)
     try:
-        # Can't deal with excetionally long sentences
-        inputs = tokenizer(Text, return_tensors="pt")
-        outputs = model(**inputs)
-        embedding = outputs.pooler_output.detach().numpy()
+        with h5py.File(cfg.SCIBERT_DB, 'a') as f:
+            key = Text.replace('/', '\\').encode('utf-8')
+            if key in f.keys():
+                embedding = f[key][:]
+            else:
+                # Can't deal with excetionally long sentences
+                inputs = tokenizer(Text, return_tensors="pt")
+                outputs = model(**inputs)
+                embedding = outputs.pooler_output.detach().numpy()
+                f.create_dataset(key, data=embedding)
     except Exception as e:
         if not model is None:
-            print(e)
+            print(Text)
+            print(traceback.print_exc())
         
     embedding = embedding.flatten()
     if model is None:

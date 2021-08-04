@@ -13,6 +13,8 @@ train_tsv_file = 'all.tsv'
 preprocessed_file = 'preprocessed.pickle'
 model_file = 'model.pickle'
 
+SCIBERT_DB = 'embed.hdf5'
+
 GENERATE_HL_PDF = True     # Generate highlighted pdf files based on mendeley annotation
 GENERATE_HL_TSV = True     # Generate highlight dataset from pdfs
 NEGATIVE_RATIO = 3         # Nagative sampling ratio

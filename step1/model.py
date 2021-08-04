@@ -138,7 +138,8 @@ class SVM:
                 n_jobs=CORE_NUM, 
                 cv=model_selection.ShuffleSplit(FOLDS))
             self.clf.fit(X, y)
-            print(json.dumps(self.clf.cv_results_, indent=2, cls=NumpyEncoder))
+            with open("cv_result.json", "w", encoding="utf-8") as f:
+                json.dump(self.clf.cv_results_, f, indent=2, cls=NumpyEncoder)
             print("{}\t{}".format(self.clf.best_score_, self.clf.best_params_))
         else:
             self.clf = self.model
