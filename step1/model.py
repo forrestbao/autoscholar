@@ -9,6 +9,7 @@ import random
 from sklearn import preprocessing, model_selection
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
+from sklearn.neural_network import MLPClassifier
 from sklearn.svm import SVC
 from transformers import AutoTokenizer, AutoModel
 import json
@@ -175,6 +176,16 @@ class LinearModel(SVM):
         }
         self.model = LogisticRegression()
 
+class MLPModel(SVM):
+    def __init__(self):
+        self.init()
+        self.param = {
+            "alpha": np.logspace(-6,0,4),
+            "max_iter" : np.arange(10, 100, 10),
+            "hidden_layer_sizes" : [(128,), (128, 64), (128, 64, 32), (64, 32), (32,)]
+        }
+        self.model = MLPClassifier()
+
 def save_model(model, path):
     with open(path, "wb") as f:
         pickle.dump(model, f)
@@ -185,7 +196,7 @@ def load_model(path):
     
 
 if __name__ == "__main__":
-    model = SVM()
+    model = RandomForest()
     model.preprocessing(cfg.train_tsv_file)
     save_model(model, cfg.model_file)
     model = load_model(cfg.model_file)

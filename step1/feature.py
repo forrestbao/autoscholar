@@ -68,6 +68,9 @@ def feature_per_line(Text, nlp_handler, stopwords, units, model, tokenizer, **kw
             else:
                 # Can't deal with excetionally long sentences
                 inputs = tokenizer(Text, return_tensors="pt")
+                # Truncate at 512
+                for item in inputs:
+                    inputs[item] = inputs[item][:, :512]
                 outputs = model(**inputs)
                 embedding = outputs.pooler_output.detach().numpy()
                 f.create_dataset(key, data=embedding)
