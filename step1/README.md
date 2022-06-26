@@ -51,6 +51,18 @@ python model.py
 python main.py
 ```
 
+## Cross vaiidation results table
+| Setting         | Model                  | F-score | Precision | Recall |
+|-----------------|------------------------|---------|-----------|--------|
+| Without SciBERT | SVC                    | 0.61    | 0.68      | 0.56   |
+|                 | RandomForestClassifier | 0.65    | 0.67      | 0.64   |
+|                 | LogisticRegression     | 0.55    | 0.52      | 0.58   |
+|                 | MLPClassifier          | 0.64    | 0.66      | 0.62   |
+| With SciBERT    | SVC                    | 0.68    | 0.72      | 0.64   |
+|                 | RandomForestClassifier | 0.64    | 0.78      | 0.54   |
+|                 | LogisticRegression     | 0.64    | 0.61      | 0.66   |
+|                 | MLPClassifier          | **0.69**    | 0.70      | **0.69**   |
+
 ## Cross validation results
 1. SVC
 ```
